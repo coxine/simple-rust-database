@@ -1,15 +1,29 @@
-use sqlparser::dialect::GenericDialect;
-use sqlparser::parser::Parser;
+mod executor;
+mod parser;
+
+use std::io::{self, Write};
 
 fn main() {
-    let sql = "SELECT a, b, 123, myfunc(b) \
-           FROM table_1 \
-           WHERE a > b AND b < 100 \
-           ORDER BY a DESC, b";
+    loop {
+        print!("> ");
+        io::stdout().flush().unwrap();
 
-    let dialect = GenericDialect {}; // or AnsiDialect, or your own dialect ...
+        let mut sql = String::new();
+        io::stdin().read_line(&mut sql).expect("读取输入失败");
 
-    let ast = Parser::parse_sql(&dialect, sql).unwrap();
+        let sql = sql.trim();
 
-    println!("AST: {:#?}", ast);
+        if sql.eq_ignore_ascii_case("exit") {
+            break;
+        }
+
+        match parser::parse_sql(sql) {
+            Ok(ast) => {
+                for stmt in &ast {
+                    executor::execute_statement(stmt);
+                }
+            }
+            Err(e) => println!("解析错误: {}\n如需退出请输入`exit`", e),
+        }
+    }
 }
