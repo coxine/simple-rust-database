@@ -77,19 +77,33 @@ impl Highlighter for MyHelper {
         .unwrap();
 
         // 数字的正则表达式（包括整数和浮点数）
-        let number_re = Regex::new(r"\b(0[x|X][0-9a-fA-F]+)|(\d+(\.\d+)?)\b").unwrap();
+        let number_re = Regex::new(r"\b((0[x|X][0-9a-fA-F]+)|(\d+(\.\d+)?))\b").unwrap();
 
         // 对查询字符串进行高亮
-        let result = number_re.replace_all(&line, |caps: &regex::Captures| {
-            // 对数字进行紫色高亮 先数字防止转义字符被解释为数字
+        let mut bracket_str = self.highlighter.highlight(&line, pos).to_string();
+        bracket_str = Regex::new(r"\x1b\[1;34m")
+            .unwrap()
+            .replace_all(&bracket_str, "$$$$Brack")
+            .to_string();
+        bracket_str = Regex::new(r"\x1b\[0m")
+            .unwrap()
+            .replace_all(&bracket_str, "$$$$Reset ")
+            .to_string();
+        let result1 = number_re.replace_all(&bracket_str, |caps: &regex::Captures| {
+            // 对数字进行紫色高亮
             format!("\x1b[35m{}\x1b[0m", &caps[0])
         });
-        let result2 = keyword_re.replace_all(&result, |caps: &regex::Captures| {
-            // 对保留字进行蓝色高亮
-            format!("\x1b[34m{}\x1b[0m", &caps[0])
-        });
-        let bracket_str = self.highlighter.highlight(&result2, pos).to_string();
-        Cow::Owned(bracket_str)
+        let mut result2 = keyword_re
+            .replace_all(&result1, |caps: &regex::Captures| {
+                // 对保留字进行蓝色高亮
+                format!("\x1b[34m{}\x1b[0m", &caps[0])
+            })
+            .to_string();
+        while result2.contains("$$Reset ") {
+            result2 = result2.replace("$$Reset ", "\x1b[0m");
+            result2 = result2.replace("$$Brack", "\x1b[1;34m");
+        }
+        Cow::Owned(result2)
     }
     fn highlight_char(&self, line: &str, pos: usize, kind: CmdKind) -> bool {
         self.highlighter.highlight_char(line, pos, kind) || true
