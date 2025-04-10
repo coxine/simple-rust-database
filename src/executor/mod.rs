@@ -1,5 +1,6 @@
 use sqlparser::ast::Statement;
 mod create_table;
+mod drop;
 
 pub fn execute_statement(stmt: &Statement) {
     match stmt {
@@ -25,7 +26,7 @@ fn create_table(stmt: &Statement) {
     }
 }
 fn drop(stmt: &Statement) {
-    println!("Drop: {:?}", stmt);
+    drop::drop(stmt);
 }
 
 fn insert(stmt: &Statement) {
