@@ -106,7 +106,7 @@ impl Highlighter for MyHelper {
         Cow::Owned(result2)
     }
     fn highlight_char(&self, line: &str, pos: usize, kind: CmdKind) -> bool {
-        self.highlighter.highlight_char(line, pos, kind) || true
+        self.highlighter.highlight_char(line, pos, kind) || CmdKind::MoveCursor == kind
     }
 }
 
