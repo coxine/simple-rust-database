@@ -3,5 +3,10 @@ mod parser;
 mod repl;
 
 fn main() {
-    repl::run_repl();
+    match repl::run_repl() {
+        Ok(()) => (),
+        Err(e) => {
+            eprintln!("Error: {}", e);
+        }
+    }
 }

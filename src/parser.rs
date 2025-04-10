@@ -4,6 +4,6 @@ use sqlparser::parser::Parser;
 pub fn parse_sql(
     sql: &str,
 ) -> Result<Vec<sqlparser::ast::Statement>, sqlparser::parser::ParserError> {
-    let dialect = GenericDialect {}; // or AnsiDialect, or your own dialect ...
+    let dialect = GenericDialect {};
     Parser::parse_sql(&dialect, sql)
 }
