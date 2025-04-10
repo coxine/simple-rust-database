@@ -9,10 +9,13 @@ use rustyline::validate::{ValidationContext, ValidationResult, Validator};
 use rustyline::Helper;
 use rustyline::{error::ReadlineError, Editor, Result};
 use std::borrow::Cow::{self, Borrowed};
+use std::time::{Duration, Instant};
+use std::cell::Cell;
 
 struct MyHelper {
     colored_prompt: String,
     highlighter: MatchingBracketHighlighter,
+    last_refresh: Cell<Instant>,
 }
 impl Helper for MyHelper {}
 
@@ -61,7 +64,6 @@ impl Highlighter for MyHelper {
         }
     }
 
-    // 根据光标位置高亮匹配括号
     fn highlight<'l>(&self, line: &'l str, pos: usize) -> Cow<'l, str> {
         let keywords = [
             "SELECT", "FROM", "WHERE", "INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "ALTER",
@@ -80,6 +82,7 @@ impl Highlighter for MyHelper {
         let number_re = Regex::new(r"\b((0[x|X][0-9a-fA-F]+)|(\d+(\.\d+)?))\b").unwrap();
 
         // 对查询字符串进行高亮
+        // 根据光标位置高亮匹配括号
         let mut bracket_str = self.highlighter.highlight(&line, pos).to_string();
         bracket_str = Regex::new(r"\x1b\[1;34m")
             .unwrap()
@@ -103,20 +106,29 @@ impl Highlighter for MyHelper {
             result2 = result2.replace("$$Reset ", "\x1b[0m");
             result2 = result2.replace("$$Brack", "\x1b[1;34m");
         }
+
         Cow::Owned(result2)
     }
     fn highlight_char(&self, line: &str, pos: usize, kind: CmdKind) -> bool {
-        self.highlighter.highlight_char(line, pos, kind) || CmdKind::MoveCursor == kind
+        let now = Instant::now();
+        let last = self.last_refresh.get();
+        let mut flag = false;
+        if now.duration_since(last) >= Duration::from_millis(30) {
+            self.last_refresh.set(now);
+            flag = true;
+        }
+        self.highlighter.highlight_char(line, pos, kind) || flag
     }
 }
 
 pub fn run_repl() -> Result<()> {
     println!("欢迎进入 SIMPLE RUST DATABASE Repl，输入 `exit` 或 `Ctrl+D` 退出。");
 
-    let prompt: &str = "> ";
+    let prompt: &str = "> "; // 提示词
     let h = MyHelper {
         colored_prompt: format!("\x1b[1;32m{prompt}\x1b[0m").to_owned(),
         highlighter: MatchingBracketHighlighter::new(),
+        last_refresh: Cell::new(Instant::now() - Duration::from_millis(30)),
     };
 
     let mut rl = Editor::<MyHelper, DefaultHistory>::new()?;
