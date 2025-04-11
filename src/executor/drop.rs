@@ -20,21 +20,24 @@ pub fn drop(stmt: &Statement) {
                         Ok(_) => println!("DROP: 成功删除表 {}", table_name),
                         Err(err) => match err.kind() {
                             ErrorKind::NotFound if *if_exists => {
-                                println!("\x1b[33m警告\x1b[0m: 表 {} 不存在 (by IF EXISTS)", file_path);
+                                eprintln!(
+                                    "\x1b[33m警告\x1b[0m: 表 {} 不存在 (by IF EXISTS)",
+                                    file_path
+                                );
                             }
                             ErrorKind::NotFound => {
                                 eprintln!("删除表错误: 表 {} 不存在", file_path);
                             }
                             _ => {
-                                eprintln!("删除表作物: {}", err);
+                                eprintln!("删除表错误: {}", err);
                             }
                         },
                     }
                 }
             }
-            _ => println!("暂不支持删除类型: {:?}", object_type),
+            _ => eprintln!("暂不支持删除类型: {:?}", object_type),
         }
     } else {
-        println!("DROP操作失败: 无法解析AST");
+        eprintln!("DROP操作失败: 无法解析AST");
     }
 }

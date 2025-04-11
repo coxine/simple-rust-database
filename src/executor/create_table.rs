@@ -24,12 +24,12 @@ pub fn create_csv_table(create_table_stmt: &CreateTable) {
     let path = Path::new(&file_path);
 
     if path.exists() {
-        println!("创建表失败: 表 {} 已存在", table_name);
+        eprintln!("创建表失败: 表 {} 已存在", table_name);
         return;
     }
 
     if let Err(e) = fs::create_dir_all("data") {
-        println!("创建目录失败: {}", e);
+        eprintln!("创建目录失败: {}", e);
         return;
     }
 
@@ -44,16 +44,16 @@ pub fn create_csv_table(create_table_stmt: &CreateTable) {
             let flag_line = generate_flag_line(create_table_stmt);
 
             if writeln!(file, "{}", header_line).is_err() {
-                println!("写入表头失败");
+                eprintln!("写入表头失败");
             } else if writeln!(file, "{}", length_line).is_err() {
-                println!("写入长度信息失败");
+                eprintln!("写入长度信息失败");
             } else if writeln!(file, "{}", flag_line).is_err() {
-                println!("写入 flags 信息失败");
+                eprintln!("写入 flags 信息失败");
             } else {
                 println!("CreateTable: 成功创建表 {}", table_name);
             }
         }
-        Err(e) => println!("创建表失败: {}", e),
+        Err(e) => eprintln!("创建表失败: {}", e),
     }
 }
 

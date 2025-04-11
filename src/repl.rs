@@ -9,8 +9,8 @@ use rustyline::validate::{ValidationContext, ValidationResult, Validator};
 use rustyline::Helper;
 use rustyline::{error::ReadlineError, Editor, Result};
 use std::borrow::Cow::{self, Borrowed};
-use std::time::{Duration, Instant};
 use std::cell::Cell;
+use std::time::{Duration, Instant};
 
 struct MyHelper {
     colored_prompt: String,
@@ -152,7 +152,7 @@ pub fn run_repl() -> Result<()> {
                         }
                     }
                     Err(e) => {
-                        println!("解析错误: {}\n如需退出请输入 `exit` 或 `Ctrl+D`", e);
+                        eprintln!("解析错误: {}\n如需退出请输入 `exit` 或 `Ctrl+D`", e);
                     }
                 }
             }
@@ -168,7 +168,7 @@ pub fn run_repl() -> Result<()> {
             }
 
             Err(err) => {
-                println!("读取错误: {:?}", err);
+                eprintln!("读取错误: {:?}", err);
                 break;
             }
         }

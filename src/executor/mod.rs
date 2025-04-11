@@ -10,7 +10,7 @@ pub fn execute_statement(stmt: &Statement) {
         Statement::Insert { .. } => insert(stmt),
         Statement::Delete { .. } => delete(stmt),
         Statement::Update { .. } => update(stmt),
-        _ => println!("未识别的命令"),
+        _ => eprintln!("未识别的命令"),
     }
 }
 
@@ -22,7 +22,7 @@ fn create_table(stmt: &Statement) {
     if let Statement::CreateTable(create_table_stmt) = stmt {
         create_table::create_csv_table(&create_table_stmt);
     } else {
-        println!("创建表失败: 无法解析表名");
+        eprintln!("创建表失败: 无法解析表名");
     }
 }
 fn drop(stmt: &Statement) {
