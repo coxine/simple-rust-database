@@ -1,4 +1,4 @@
-use sqlparser::ast::{CreateTable, DataType};
+use sqlparser::ast::{CreateTable, DataType, Statement};
 use std::fs;
 use std::io::Write;
 use std::path::Path;
@@ -12,48 +12,52 @@ use std::path::Path;
 ///    - 中间位：`1` 表示该列是主键
 ///    - 最低位：`1` 表示该列非空
 ///
-pub fn create_csv_table(create_table_stmt: &CreateTable) {
-    let table_name = create_table_stmt
-        .name
-        .0
-        .iter()
-        .map(|ident| ident.to_string())
-        .collect::<Vec<String>>()
-        .join("_");
-    let file_path = format!("data/{}.csv", table_name);
-    let path = Path::new(&file_path);
+pub fn create_csv_table(stmt: &Statement) {
+    if let Statement::CreateTable(create_table_stmt) = stmt {
+        let table_name = create_table_stmt
+            .name
+            .0
+            .iter()
+            .map(|ident| ident.to_string())
+            .collect::<Vec<String>>()
+            .join("_");
+        let file_path = format!("data/{}.csv", table_name);
+        let path = Path::new(&file_path);
 
-    if path.exists() {
-        eprintln!("创建表失败: 表 {} 已存在", table_name);
-        return;
-    }
-
-    if let Err(e) = fs::create_dir_all("data") {
-        eprintln!("创建目录失败: {}", e);
-        return;
-    }
-
-    match fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(&file_path)
-    {
-        Ok(mut file) => {
-            let header_line = generate_header_line(create_table_stmt);
-            let length_line = generate_length_line(create_table_stmt);
-            let flag_line = generate_flag_line(create_table_stmt);
-
-            if writeln!(file, "{}", header_line).is_err() {
-                eprintln!("写入表头失败");
-            } else if writeln!(file, "{}", length_line).is_err() {
-                eprintln!("写入长度信息失败");
-            } else if writeln!(file, "{}", flag_line).is_err() {
-                eprintln!("写入 flags 信息失败");
-            } else {
-                println!("CreateTable: 成功创建表 {}", table_name);
-            }
+        if path.exists() {
+            eprintln!("创建表失败: 表 {} 已存在", table_name);
+            return;
         }
-        Err(e) => eprintln!("创建表失败: {}", e),
+
+        if let Err(e) = fs::create_dir_all("data") {
+            eprintln!("创建目录失败: {}", e);
+            return;
+        }
+
+        match fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&file_path)
+        {
+            Ok(mut file) => {
+                let header_line = generate_header_line(create_table_stmt);
+                let length_line = generate_length_line(create_table_stmt);
+                let flag_line = generate_flag_line(create_table_stmt);
+
+                if writeln!(file, "{}", header_line).is_err() {
+                    eprintln!("写入表头失败");
+                } else if writeln!(file, "{}", length_line).is_err() {
+                    eprintln!("写入长度信息失败");
+                } else if writeln!(file, "{}", flag_line).is_err() {
+                    eprintln!("写入 flags 信息失败");
+                } else {
+                    println!("CreateTable: 成功创建表 {}", table_name);
+                }
+            }
+            Err(e) => eprintln!("创建表失败: {}", e),
+        }
+    } else {
+        eprintln!("创建表失败: 无法解析表名");
     }
 }
 
