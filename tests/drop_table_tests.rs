@@ -16,7 +16,8 @@ fn test_create_and_drop_table() {
 
     let result = parser::parse_sql(create_sql);
     assert!(result.is_ok());
-    executor::execute_statement(&result.unwrap()[0]);
+    let result = executor::execute_statement(&result.unwrap()[0]);
+    assert!(result.is_ok(), "执行失败: {:?}", result.err());
 
     // 确认表已创建
     assert!(common::table_exists("users"), "表未创建");
@@ -25,7 +26,8 @@ fn test_create_and_drop_table() {
     let drop_sql = "DROP TABLE users;";
     let result = parser::parse_sql(drop_sql);
     assert!(result.is_ok());
-    executor::execute_statement(&result.unwrap()[0]);
+    let result = executor::execute_statement(&result.unwrap()[0]);
+    assert!(result.is_ok(), "执行失败: {:?}", result.err());
 
     // 确认表已删除
     assert!(!common::table_exists("users"), "表未被删除");
@@ -41,15 +43,15 @@ fn test_drop_nonexistent_table() {
     let drop_sql = "DROP TABLE nonexistent_table;";
     let result = parser::parse_sql(drop_sql);
     assert!(result.is_ok());
-
-    // 预期会有错误信息，但不会崩溃
-    executor::execute_statement(&result.unwrap()[0]);
+    let result = executor::execute_statement(&result.unwrap()[0]);
+    assert!(result.err().is_some(), "预期执行失败，但成功执行了");
 
     // 使用 IF EXISTS 删除不存在的表
     let safe_drop_sql = "DROP TABLE IF EXISTS nonexistent_table;";
     let result = parser::parse_sql(safe_drop_sql);
     assert!(result.is_ok());
-    executor::execute_statement(&result.unwrap()[0]);
+    let result = executor::execute_statement(&result.unwrap()[0]);
+    assert!(result.is_ok(), "执行失败: {:?}", result.err());
 
     common::teardown();
 }
@@ -64,7 +66,8 @@ fn test_drop_multiple_tables() {
         let create_sql = format!("CREATE TABLE {} (id INT PRIMARY KEY);", table);
         let result = parser::parse_sql(&create_sql);
         assert!(result.is_ok());
-        executor::execute_statement(&result.unwrap()[0]);
+        let result = executor::execute_statement(&result.unwrap()[0]);
+        assert!(result.is_ok(), "执行失败: {:?}", result.err());
         assert!(common::table_exists(table), "表 {} 未创建", table);
     }
 
@@ -75,7 +78,8 @@ fn test_drop_multiple_tables() {
     // 注意：以下测试可能需要根据 DROP TABLE 的具体实现调整
     // 如果 DROP TABLE 只支持单表，可能需要分别执行
     if result.is_ok() {
-        executor::execute_statement(&result.unwrap()[0]);
+        let result = executor::execute_statement(&result.unwrap()[0]);
+        assert!(result.is_ok(), "执行失败: {:?}", result.err());
 
         // 验证所有表都已删除
         for table in &tables {

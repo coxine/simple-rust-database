@@ -3,6 +3,8 @@ use std::fs;
 use std::io::Write;
 use std::path::Path;
 
+use crate::executor::{ExecutionError, ExecutionResult};
+
 /// 根据 CreateTable 语句创建 CSV 文件。CSV 文件内容共三行：
 ///
 /// 1. 表头：各列名称，以逗号分隔
@@ -12,7 +14,7 @@ use std::path::Path;
 ///    - 中间位：`1` 表示该列是主键
 ///    - 最低位：`1` 表示该列非空
 ///
-pub fn create_csv_table(stmt: &Statement) {
+pub fn create_csv_table(stmt: &Statement) -> ExecutionResult<()> {
     if let Statement::CreateTable(create_table_stmt) = stmt {
         let table_name = create_table_stmt
             .name
@@ -25,13 +27,11 @@ pub fn create_csv_table(stmt: &Statement) {
         let path = Path::new(&file_path);
 
         if path.exists() {
-            eprintln!("创建表失败: 表 {} 已存在", table_name);
-            return;
+            return Err(ExecutionError::TableExists(table_name));
         }
 
         if let Err(e) = fs::create_dir_all("data") {
-            eprintln!("创建目录失败: {}", e);
-            return;
+            return Err(ExecutionError::FileError(format!("创建目录失败: {}", e)));
         }
 
         match fs::OpenOptions::new()
@@ -45,19 +45,22 @@ pub fn create_csv_table(stmt: &Statement) {
                 let flag_line = generate_flag_line(create_table_stmt);
 
                 if writeln!(file, "{}", header_line).is_err() {
-                    eprintln!("写入表头失败");
+                    return Err(ExecutionError::WriteError("写入表头信息失败".to_string()));
                 } else if writeln!(file, "{}", length_line).is_err() {
-                    eprintln!("写入长度信息失败");
+                    return Err(ExecutionError::WriteError("写入长度信息失败".to_string()));
                 } else if writeln!(file, "{}", flag_line).is_err() {
-                    eprintln!("写入 flags 信息失败");
+                    return Err(ExecutionError::WriteError("写入标志信息失败".to_string()));
                 } else {
-                    println!("CreateTable: 成功创建表 {}", table_name);
+                    println!("表 '{}' 创建成功，文件路径: {}", table_name, file_path);
+                    Ok(())
                 }
             }
-            Err(e) => eprintln!("创建表失败: {}", e),
+            Err(e) => {
+                return Err(ExecutionError::FileError(format!("创建文件失败: {}", e)));
+            }
         }
     } else {
-        eprintln!("创建表失败: 无法解析表名");
+        return Err(ExecutionError::ParseError("SQL 语句无法解析".to_string()));
     }
 }
 

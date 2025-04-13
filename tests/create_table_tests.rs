@@ -22,7 +22,8 @@ fn test_create_table() {
     let statements = result.unwrap();
     assert_eq!(statements.len(), 1, "应该只有一条语句被解析");
 
-    executor::execute_statement(&statements[0]);
+    let result = executor::execute_statement(&statements[0]);
+    assert!(result.is_ok(), "执行失败: {:?}", result.err());
 
     // 验证文件是否已创建
     let file_path = common::get_table_path("test_table");
@@ -59,7 +60,8 @@ fn test_create_table_with_various_data_types() {
 
     let result = parser::parse_sql(create_sql);
     assert!(result.is_ok());
-    executor::execute_statement(&result.unwrap()[0]);
+    let result = executor::execute_statement(&result.unwrap()[0]);
+    assert!(result.is_ok(), "执行失败: {:?}", result.err());
 
     // 验证文件是否已创建及其内容
     let file_path = common::get_table_path("products");

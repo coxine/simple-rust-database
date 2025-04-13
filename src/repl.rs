@@ -148,7 +148,14 @@ pub fn run_repl() -> Result<()> {
                 match parser::parse_sql(sql) {
                     Ok(ast) => {
                         for stmt in &ast {
-                            executor::execute_statement(stmt);
+                            match executor::execute_statement(stmt) {
+                                Ok(_) => {
+                                    println!("执行成功");
+                                }
+                                Err(e) => {
+                                    eprintln!("执行失败: {}", e);
+                                }
+                            }
                         }
                     }
                     Err(e) => {

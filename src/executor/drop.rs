@@ -1,8 +1,9 @@
+use crate::executor::{ExecutionError, ExecutionResult};
 use sqlparser::ast::{ObjectType, Statement};
 use std::io::ErrorKind;
 
 // DROP: 删除一或多个数据表。
-pub fn drop(stmt: &Statement) {
+pub fn drop(stmt: &Statement) -> ExecutionResult<()> {
     if let Statement::Drop {
         object_type,
         if_exists,
@@ -20,24 +21,31 @@ pub fn drop(stmt: &Statement) {
                         Ok(_) => println!("DROP: 成功删除表 {}", table_name),
                         Err(err) => match err.kind() {
                             ErrorKind::NotFound if *if_exists => {
-                                eprintln!(
-                                    "\x1b[33m警告\x1b[0m: 表 {} 不存在 (by IF EXISTS)",
-                                    file_path
-                                );
+                                eprintln!("DROP: 表 {} 不存在，跳过删除", table_name);
+                                return Ok(());
                             }
+
                             ErrorKind::NotFound => {
-                                eprintln!("删除表错误: 表 {} 不存在", file_path);
+                                return Err(ExecutionError::TableNotFound(table_name))
                             }
                             _ => {
-                                eprintln!("删除表错误: {}", err);
+                                return Err(ExecutionError::FileError(format!(
+                                    "删除表错误: {}",
+                                    err
+                                )));
                             }
                         },
                     }
                 }
+                Ok(())
             }
-            _ => eprintln!("暂不支持删除类型: {:?}", object_type),
+            _ => {
+                return Err(ExecutionError::ExecutionError(
+                    "暂不支持删除类型".to_string(),
+                ));
+            }
         }
     } else {
-        eprintln!("DROP操作失败: 无法解析AST");
+        return Err(ExecutionError::ParseError("无法解析DROP语句".to_string()));
     }
 }
