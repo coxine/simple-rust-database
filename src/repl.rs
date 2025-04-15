@@ -1,5 +1,6 @@
 use crate::executor;
 use crate::parser;
+use lazy_static::lazy_static;
 use regex::Regex;
 use rustyline::completion::Completer;
 use rustyline::highlight::{CmdKind, Highlighter, MatchingBracketHighlighter};
@@ -11,6 +12,26 @@ use rustyline::{error::ReadlineError, Editor, Result};
 use std::borrow::Cow::{self, Borrowed};
 use std::cell::Cell;
 use std::time::{Duration, Instant};
+
+lazy_static! {
+    static ref KEYWORD_RE: Regex = {
+        let keywords = [
+            "SELECT", "FROM", "WHERE", "INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "ALTER",
+            "JOIN", "AND", "OR", "NOT", "GROUP", "ORDER", "BY", "HAVING", "LIMIT", "DISTINCT",
+        ];
+        Regex::new(
+            &keywords
+                .iter()
+                .map(|&kw| format!(r"(?i)\b{}\b", regex::escape(kw)))
+                .collect::<Vec<String>>()
+                .join("|"),
+        )
+        .unwrap()
+    };
+    static ref NUMBER_RE: Regex = Regex::new(r"\b((0[x|X][0-9a-fA-F]+)|(\d+(\.\d+)?))\b").unwrap();
+    static ref BRACKET_START_RE: Regex = Regex::new(r"\x1b\[1;34m").unwrap();
+    static ref BRACKET_END_RE: Regex = Regex::new(r"\x1b\[0m").unwrap();
+}
 
 struct MyHelper {
     colored_prompt: String,
@@ -65,38 +86,20 @@ impl Highlighter for MyHelper {
     }
 
     fn highlight<'l>(&self, line: &'l str, pos: usize) -> Cow<'l, str> {
-        let keywords = [
-            "SELECT", "FROM", "WHERE", "INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "ALTER",
-            "JOIN", "AND", "OR", "NOT", "GROUP", "ORDER", "BY", "HAVING", "LIMIT", "DISTINCT",
-        ];
-        let keyword_re = Regex::new(
-            &keywords
-                .iter()
-                .map(|&kw| format!(r"(?i)\b{}\b", regex::escape(kw)))
-                .collect::<Vec<String>>()
-                .join("|"),
-        )
-        .unwrap();
-
-        // 数字的正则表达式（包括整数和浮点数）
-        let number_re = Regex::new(r"\b((0[x|X][0-9a-fA-F]+)|(\d+(\.\d+)?))\b").unwrap();
-
         // 对查询字符串进行高亮
         // 根据光标位置高亮匹配括号
         let mut bracket_str = self.highlighter.highlight(&line, pos).to_string();
-        bracket_str = Regex::new(r"\x1b\[1;34m")
-            .unwrap()
+        bracket_str = BRACKET_START_RE
             .replace_all(&bracket_str, "$$$$Brack")
             .to_string();
-        bracket_str = Regex::new(r"\x1b\[0m")
-            .unwrap()
+        bracket_str = BRACKET_END_RE
             .replace_all(&bracket_str, "$$$$Reset ")
             .to_string();
-        let result1 = number_re.replace_all(&bracket_str, |caps: &regex::Captures| {
+        let result1 = NUMBER_RE.replace_all(&bracket_str, |caps: &regex::Captures| {
             // 对数字进行紫色高亮
             format!("\x1b[35m{}\x1b[0m", &caps[0])
         });
-        let mut result2 = keyword_re
+        let mut result2 = KEYWORD_RE
             .replace_all(&result1, |caps: &regex::Captures| {
                 // 对保留字进行蓝色高亮
                 format!("\x1b[34m{}\x1b[0m", &caps[0])
