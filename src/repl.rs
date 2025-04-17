@@ -28,6 +28,10 @@ lazy_static! {
         )
         .unwrap()
     };
+    static ref OTHERCHAR_RE: Regex = Regex::new(r"[\u4e00-\u9fa5]+").unwrap();
+    static ref WHITESPACE_RE: Regex = Regex::new(r"[\t \n\r]+").unwrap();
+    static ref STRING_RE: Regex = Regex::new(r#""([^"\\]*)""#).unwrap();
+    static ref COMMENT_RE: Regex = Regex::new(r"(--[^\n]*)|(\/\*[\s\S]*?\*\/)").unwrap();
     static ref NUMBER_RE: Regex = Regex::new(r"\b((0[x|X][0-9a-fA-F]+)|(\d+(\.\d+)?))\b").unwrap();
     static ref BRACKET_START_RE: Regex = Regex::new(r"\x1b\[1;34m").unwrap();
     static ref BRACKET_END_RE: Regex = Regex::new(r"\x1b\[0m").unwrap();
@@ -95,28 +99,84 @@ impl Highlighter for MyHelper {
         bracket_str = BRACKET_END_RE
             .replace_all(&bracket_str, "$$$$Reset ")
             .to_string();
-        let result1 = NUMBER_RE.replace_all(&bracket_str, |caps: &regex::Captures| {
-            // 对数字进行紫色高亮
-            format!("\x1b[35m{}\x1b[0m", &caps[0])
-        });
-        let mut result2 = KEYWORD_RE
-            .replace_all(&result1, |caps: &regex::Captures| {
-                // 对保留字进行蓝色高亮
-                format!("\x1b[34m{}\x1b[0m", &caps[0])
-            })
-            .to_string();
-        while result2.contains("$$Reset ") {
-            result2 = result2.replace("$$Reset ", "\x1b[0m");
-            result2 = result2.replace("$$Brack", "\x1b[1;34m");
+        let mut tokens = Vec::new();
+        let mut current_pos = 0;
+
+        while current_pos < bracket_str.len() {
+            let remaining = &&bracket_str[current_pos..];
+
+            // 匹配空白符
+            if let Some(m) = WHITESPACE_RE.find(remaining) {
+                if m.start() == 0 {
+                    tokens.push(format!("{}", &remaining[m.start()..m.end()]));
+                    current_pos += m.end();
+                    continue;
+                }
+            }
+
+            // 匹配字符串字面量
+            if let Some(m) = STRING_RE.find(remaining) {
+                if m.start() == 0 {
+                    tokens.push(format!("\x1b[32m{}\x1b[0m", &remaining[m.start()..m.end()]));
+                    current_pos += m.end();
+                    continue;
+                }
+            }
+
+            // 匹配注释
+            if let Some(m) = COMMENT_RE.find(remaining) {
+                if m.start() == 0 {
+                    tokens.push(format!("\x1b[90m{}\x1b[0m", &remaining[m.start()..m.end()]));
+                    current_pos += m.end();
+                    continue;
+                }
+            }
+
+            // 匹配数字
+            if let Some(m) = NUMBER_RE.find(remaining) {
+                if m.start() == 0 {
+                    tokens.push(format!("\x1b[35m{}\x1b[0m", &remaining[m.start()..m.end()]));
+                    current_pos += m.end();
+                    continue;
+                }
+            }
+
+            // 匹配关键词
+            if let Some(m) = KEYWORD_RE.find(remaining) {
+                if m.start() == 0 {
+                    tokens.push(format!("\x1b[34m{}\x1b[0m", &remaining[m.start()..m.end()]));
+                    current_pos += m.end();
+                    continue;
+                }
+            }
+
+            // 匹配其他字符 -- 目前仅考虑了中文
+            if let Some(m) = OTHERCHAR_RE.find(remaining) {
+                if m.start() == 0 {
+                    tokens.push(format!("{}", &remaining[m.start()..m.end()]));
+                    current_pos += m.end();
+                    continue;
+                }
+            }
+
+            // 如果没有匹配到任何规则，则将当前字符作为普通文本处理
+            tokens.push(bracket_str[current_pos..current_pos+1].to_string());
+            current_pos += 1;
         }
 
-        Cow::Owned(result2)
+        // 拼接所有词素
+        let mut ret = tokens.join("");
+        while ret.contains("$$Reset ") {
+            ret = ret.replace("$$Reset ", "\x1b[0m");
+            ret = ret.replace("$$Brack", "\x1b[1;34m");
+        }
+        Cow::Owned(ret)
     }
     fn highlight_char(&self, line: &str, pos: usize, kind: CmdKind) -> bool {
         let now = Instant::now();
         let last = self.last_refresh.get();
         let mut flag = false;
-        if now.duration_since(last) >= Duration::from_millis(30) {
+        if now.duration_since(last) >= Duration::from_millis(50) {
             self.last_refresh.set(now);
             flag = true;
         }
