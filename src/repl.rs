@@ -17,7 +17,8 @@ lazy_static! {
     static ref KEYWORD_RE: Regex = {
         let keywords = [
             "SELECT", "FROM", "WHERE", "INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "ALTER",
-            "JOIN", "AND", "OR", "NOT", "GROUP", "ORDER", "BY", "HAVING", "LIMIT", "DISTINCT",
+            "JOIN",  "GROUP", "ORDER", "BY", "HAVING", "LIMIT", "DISTINCT", "NULL", "PRIMARY",
+            "KEY", "FOREIGN", "REFERENCES", "UNIQUE", "CHECK", "DEFAULT", "INDEX", "VIEW",
         ];
         Regex::new(
             &keywords
@@ -28,9 +29,20 @@ lazy_static! {
         )
         .unwrap()
     };
+    static ref OPERATOR_RE: Regex = {
+        let operator = ["AND", "OR", "NOT", "COUNT", "SUM", "AVG", "MAX", "MIN", "LIKE", "IN", "BETWEEN", "IS", "EXISTS", "AS", "ON", "WITH", "UNION", "INTERSECT"];
+        Regex::new(
+            &operator
+                .iter()
+                .map(|&kw| format!(r"(?i)\b{}\b", regex::escape(kw)))
+                .collect::<Vec<String>>()
+                .join("|"),
+        )
+        .unwrap()
+    };
     static ref OTHERCHAR_RE: Regex = Regex::new(r"[\u4e00-\u9fa5]+").unwrap();
     static ref WHITESPACE_RE: Regex = Regex::new(r"[\t \n\r]+").unwrap();
-    static ref STRING_RE: Regex = Regex::new(r#""([^"\\]*)""#).unwrap();
+    static ref STRING_RE: Regex = Regex::new(r#""(\\.|[^"])*"|'(\\.|[^'])*'"#).unwrap();
     static ref COMMENT_RE: Regex = Regex::new(r"(--[^\n]*)|(\/\*[\s\S]*?\*\/)").unwrap();
     static ref NUMBER_RE: Regex = Regex::new(r"\b((0[x|X][0-9a-fA-F]+)|(\d+(\.\d+)?))\b").unwrap();
     static ref BRACKET_START_RE: Regex = Regex::new(r"\x1b\[1;34m").unwrap();
@@ -150,6 +162,14 @@ impl Highlighter for MyHelper {
                 }
             }
 
+            if let Some(m) = OPERATOR_RE.find(remaining) {
+                if m.start() == 0 {
+                    tokens.push(format!("\x1b[36m{}\x1b[0m", &remaining[m.start()..m.end()]));
+                    current_pos += m.end();
+                    continue;
+                }
+            }
+
             // 匹配其他字符 -- 目前仅考虑了中文
             if let Some(m) = OTHERCHAR_RE.find(remaining) {
                 if m.start() == 0 {
@@ -160,7 +180,7 @@ impl Highlighter for MyHelper {
             }
 
             // 如果没有匹配到任何规则，则将当前字符作为普通文本处理
-            tokens.push(bracket_str[current_pos..current_pos+1].to_string());
+            tokens.push(bracket_str[current_pos..current_pos + 1].to_string());
             current_pos += 1;
         }
 
