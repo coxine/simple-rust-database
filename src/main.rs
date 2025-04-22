@@ -1,4 +1,5 @@
 mod executor;
+mod highlighter;
 mod parser;
 mod repl;
 fn main() {

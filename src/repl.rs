@@ -1,100 +1,16 @@
 use crate::executor;
+use crate::highlighter;
 use crate::parser;
-use lazy_static::lazy_static;
-use regex::Regex;
 use rustyline::completion::Completer;
-use rustyline::highlight::{CmdKind, Highlighter, MatchingBracketHighlighter};
+use rustyline::highlight::Highlighter;
 use rustyline::hint::Hinter;
 use rustyline::history::DefaultHistory;
 use rustyline::validate::{ValidationContext, ValidationResult, Validator};
 use rustyline::Helper;
 use rustyline::{error::ReadlineError, Editor, Result};
-use std::borrow::Cow::{self, Borrowed};
-use std::cell::Cell;
-use std::time::{Duration, Instant};
-
-lazy_static! {
-    static ref KEYWORD_RE: Regex = {
-        let keywords = [
-            "SELECT",
-            "FROM",
-            "WHERE",
-            "INSERT",
-            "UPDATE",
-            "DELETE",
-            "CREATE",
-            "DROP",
-            "ALTER",
-            "JOIN",
-            "GROUP",
-            "ORDER",
-            "BY",
-            "HAVING",
-            "LIMIT",
-            "DISTINCT",
-            "NULL",
-            "PRIMARY",
-            "KEY",
-            "FOREIGN",
-            "REFERENCES",
-            "UNIQUE",
-            "CHECK",
-            "DEFAULT",
-            "INDEX",
-            "VIEW",
-        ];
-        Regex::new(
-            &keywords
-                .iter()
-                .map(|&kw| format!(r"(?i)\b{}\b", regex::escape(kw)))
-                .collect::<Vec<String>>()
-                .join("|"),
-        )
-        .unwrap()
-    };
-    static ref OPERATOR_RE: Regex = {
-        let operator = [
-            "AND",
-            "OR",
-            "NOT",
-            "COUNT",
-            "SUM",
-            "AVG",
-            "MAX",
-            "MIN",
-            "LIKE",
-            "IN",
-            "BETWEEN",
-            "IS",
-            "EXISTS",
-            "AS",
-            "ON",
-            "WITH",
-            "UNION",
-            "INTERSECT",
-        ];
-        Regex::new(
-            &operator
-                .iter()
-                .map(|&kw| format!(r"(?i)\b{}\b", regex::escape(kw)))
-                .collect::<Vec<String>>()
-                .join("|"),
-        )
-        .unwrap()
-    };
-    static ref OTHERCHAR_RE: Regex = Regex::new(r"[\u4e00-\u9fa5]+").unwrap();
-    static ref WHITESPACE_RE: Regex = Regex::new(r"[\t \n\r]+").unwrap();
-    static ref STRING_RE: Regex = Regex::new(r#""(\\.|[^"])*"|'(\\.|[^'])*'"#).unwrap();
-    static ref COMMENT_RE: Regex = Regex::new(r"(--[^\n]*)|(\/\*[\s\S]*?\*\/)").unwrap();
-    static ref NUMBER_RE: Regex = Regex::new(r"\b((0[x|X][0-9a-fA-F]+)|(\d+(\.\d+)?))\b").unwrap();
-    static ref BRACKET_START_RE: Regex = Regex::new(r"\x1b\[1;34m").unwrap();
-    static ref BRACKET_END_RE: Regex = Regex::new(r"\x1b\[0m").unwrap();
-}
 
 struct MyHelper {
-    colored_prompt: String,
-    highlighter: MatchingBracketHighlighter,
-    last_refresh: Cell<Instant>,
+    highlighter: highlighter::SqlHighlighter,
 }
 impl Helper for MyHelper {}
 
@@ -128,121 +44,22 @@ impl Hinter for MyHelper {
     type Hint = String;
 }
 
-// 代码高亮
+// 代理高亮功能到SqlHighlighter
 impl Highlighter for MyHelper {
-    // 提示词绿色高亮
     fn highlight_prompt<'b, 's: 'b, 'p: 'b>(
         &'s self,
         prompt: &'p str,
         default: bool,
-    ) -> Cow<'b, str> {
-        if default {
-            Borrowed(&self.colored_prompt)
-        } else {
-            Borrowed(prompt)
-        }
+    ) -> std::borrow::Cow<'b, str> {
+        self.highlighter.highlight_prompt(prompt, default)
     }
 
-    fn highlight<'l>(&self, line: &'l str, pos: usize) -> Cow<'l, str> {
-        // 对查询字符串进行高亮
-        // 根据光标位置高亮匹配括号
-        let mut bracket_str = self.highlighter.highlight(&line, pos).to_string();
-        bracket_str = BRACKET_START_RE
-            .replace_all(&bracket_str, "$$$$Brack")
-            .to_string();
-        bracket_str = BRACKET_END_RE
-            .replace_all(&bracket_str, "$$$$Reset ")
-            .to_string();
-        let mut tokens = Vec::new();
-        let mut current_pos = 0;
-
-        while current_pos < bracket_str.len() {
-            let remaining = &&bracket_str[current_pos..];
-
-            // 匹配空白符
-            if let Some(m) = WHITESPACE_RE.find(remaining) {
-                if m.start() == 0 {
-                    tokens.push(format!("{}", &remaining[m.start()..m.end()]));
-                    current_pos += m.end();
-                    continue;
-                }
-            }
-
-            // 匹配字符串字面量
-            if let Some(m) = STRING_RE.find(remaining) {
-                if m.start() == 0 {
-                    tokens.push(format!("\x1b[32m{}\x1b[0m", &remaining[m.start()..m.end()]));
-                    current_pos += m.end();
-                    continue;
-                }
-            }
-
-            // 匹配注释
-            if let Some(m) = COMMENT_RE.find(remaining) {
-                if m.start() == 0 {
-                    tokens.push(format!("\x1b[90m{}\x1b[0m", &remaining[m.start()..m.end()]));
-                    current_pos += m.end();
-                    continue;
-                }
-            }
-
-            // 匹配数字
-            if let Some(m) = NUMBER_RE.find(remaining) {
-                if m.start() == 0 {
-                    tokens.push(format!("\x1b[35m{}\x1b[0m", &remaining[m.start()..m.end()]));
-                    current_pos += m.end();
-                    continue;
-                }
-            }
-
-            // 匹配关键词
-            if let Some(m) = KEYWORD_RE.find(remaining) {
-                if m.start() == 0 {
-                    tokens.push(format!("\x1b[34m{}\x1b[0m", &remaining[m.start()..m.end()]));
-                    current_pos += m.end();
-                    continue;
-                }
-            }
-
-            if let Some(m) = OPERATOR_RE.find(remaining) {
-                if m.start() == 0 {
-                    tokens.push(format!("\x1b[36m{}\x1b[0m", &remaining[m.start()..m.end()]));
-                    current_pos += m.end();
-                    continue;
-                }
-            }
-
-            // 匹配其他字符 -- 目前仅考虑了中文
-            if let Some(m) = OTHERCHAR_RE.find(remaining) {
-                if m.start() == 0 {
-                    tokens.push(format!("{}", &remaining[m.start()..m.end()]));
-                    current_pos += m.end();
-                    continue;
-                }
-            }
-
-            // 如果没有匹配到任何规则，则将当前字符作为普通文本处理
-            tokens.push(bracket_str[current_pos..current_pos + 1].to_string());
-            current_pos += 1;
-        }
-
-        // 拼接所有词素
-        let mut ret = tokens.join("");
-        while ret.contains("$$Reset ") {
-            ret = ret.replace("$$Reset ", "\x1b[0m");
-            ret = ret.replace("$$Brack", "\x1b[1;34m");
-        }
-        Cow::Owned(ret)
+    fn highlight<'l>(&self, line: &'l str, pos: usize) -> std::borrow::Cow<'l, str> {
+        self.highlighter.highlight(line, pos)
     }
-    fn highlight_char(&self, line: &str, pos: usize, kind: CmdKind) -> bool {
-        let now = Instant::now();
-        let last = self.last_refresh.get();
-        let mut flag = false;
-        if now.duration_since(last) >= Duration::from_millis(50) {
-            self.last_refresh.set(now);
-            flag = true;
-        }
-        self.highlighter.highlight_char(line, pos, kind) || flag
+
+    fn highlight_char(&self, line: &str, pos: usize, kind: rustyline::highlight::CmdKind) -> bool {
+        self.highlighter.highlight_char(line, pos, kind)
     }
 }
 
@@ -251,9 +68,7 @@ pub fn run_repl() -> Result<()> {
 
     let prompt: &str = "> "; // 提示词
     let h = MyHelper {
-        colored_prompt: format!("\x1b[1;32m{prompt}\x1b[0m").to_owned(),
-        highlighter: MatchingBracketHighlighter::new(),
-        last_refresh: Cell::new(Instant::now() - Duration::from_millis(30)),
+        highlighter: highlighter::SqlHighlighter::new(prompt),
     };
 
     let mut rl = Editor::<MyHelper, DefaultHistory>::new()?;
