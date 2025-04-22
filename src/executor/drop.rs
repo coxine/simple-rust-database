@@ -1,28 +1,6 @@
+use crate::executor::storage::remove_table_file;
 use crate::executor::{ExecutionError, ExecutionResult, TABLES};
 use sqlparser::ast::{ObjectType, Statement};
-use std::io::ErrorKind;
-
-fn remove_table_file(table_name: &str, if_exists: bool) -> ExecutionResult<()> {
-    let file_path = format!("data/{}.json", table_name);
-
-    match std::fs::remove_file(&file_path) {
-        Ok(_) => {
-            println!("DROP: 成功删除表文件 {}", table_name);
-            Ok(())
-        }
-        Err(err) => match err.kind() {
-            ErrorKind::NotFound if if_exists => {
-                eprintln!("DROP: 表文件 {} 不存在，跳过删除", table_name);
-                Ok(())
-            }
-            ErrorKind::NotFound => Err(ExecutionError::TableNotFound(table_name.to_string())),
-            _ => Err(ExecutionError::FileError(format!(
-                "删除表文件错误: {}",
-                err
-            ))),
-        },
-    }
-}
 
 pub fn drop(stmt: &Statement) -> ExecutionResult<()> {
     if let Statement::Drop {

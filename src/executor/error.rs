@@ -8,8 +8,8 @@ pub enum ExecutionError {
     FileError(String),
     ParseError(String),
     ExecutionError(String),
-    DeserializationError(String),
-    SerializationError(String),
+    DeserializationError(String, String),
+    SerializationError(String, String),
 }
 
 impl fmt::Display for ExecutionError {
@@ -20,8 +20,12 @@ impl fmt::Display for ExecutionError {
             ExecutionError::FileError(msg) => write!(f, "文件操作错误: {}", msg),
             ExecutionError::ParseError(msg) => write!(f, "解析错误: {}", msg),
             ExecutionError::ExecutionError(msg) => write!(f, "执行错误: {}", msg),
-            ExecutionError::DeserializationError(msg) => write!(f, "反序列化错误: {}", msg),
-            ExecutionError::SerializationError(msg) => write!(f, "序列化错误: {}", msg),
+            ExecutionError::DeserializationError(name, msg) => {
+                write!(f, "反序列化 '{}' 错误: {}", name, msg)
+            }
+            ExecutionError::SerializationError(name, msg) => {
+                write!(f, "序列化表 '{}' 错误: {}", name, msg)
+            }
         }
     }
 }

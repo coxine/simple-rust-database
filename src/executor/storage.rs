@@ -1,11 +1,11 @@
 use crate::executor::error::{ExecutionError, ExecutionResult};
 use crate::executor::TABLES;
-use serde_json;
+use bincode::config;
 use std::fs::{create_dir_all, read_dir, File};
-use std::io::BufReader;
+use std::io::ErrorKind;
 use std::path::Path;
 
-const FILE_EXTENSION: &str = "json";
+const FILE_EXTENSION: &str = "bin";
 
 pub fn load_all_tables() -> ExecutionResult<()> {
     let data_dir = Path::new("./data");
@@ -23,16 +23,14 @@ pub fn load_all_tables() -> ExecutionResult<()> {
         let path = entry.path();
         if path.extension().and_then(|s| s.to_str()) == Some(FILE_EXTENSION) {
             let file_name = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
-            let file = File::open(&path).map_err(|e| {
+            let mut file = File::open(&path).map_err(|e| {
                 ExecutionError::FileError(format!("打开文件 {:?} 失败: {}", path, e))
             })?;
-            let reader = BufReader::new(file);
-            let table = serde_json::from_reader(reader).map_err(|e| {
-                ExecutionError::DeserializationError(format!(
-                    "反序列化JSON表 {} 失败: {}",
-                    file_name, e
-                ))
-            })?;
+
+            let table =
+                bincode::decode_from_std_read(&mut file, config::standard()).map_err(|e| {
+                    ExecutionError::DeserializationError(file_name.to_string(), e.to_string())
+                })?;
             tables.insert(file_name.to_string(), table);
         }
     }
@@ -48,12 +46,34 @@ pub fn store_all_tables() -> ExecutionResult<()> {
         .map_err(|e| ExecutionError::ExecutionError(format!("锁定TABLES失败: {}", e)))?;
     for (name, table) in tables.iter() {
         let file_path = data_dir.join(format!("{}.{}", name, FILE_EXTENSION));
-        let file = File::create(&file_path).map_err(|e| {
+        let mut file = File::create(&file_path).map_err(|e| {
             ExecutionError::FileError(format!("创建文件 {:?} 失败: {}", file_path, e))
         })?;
-        serde_json::to_writer_pretty(file, table).map_err(|e| {
-            ExecutionError::SerializationError(format!("序列化JSON表{}失败: {}", name, e))
-        })?;
+
+        bincode::encode_into_std_write(table, &mut file, config::standard())
+            .map_err(|e| ExecutionError::SerializationError(name.to_string(), e.to_string()))?;
     }
     Ok(())
+}
+
+pub fn remove_table_file(table_name: &str, if_exists: bool) -> ExecutionResult<()> {
+    let file_path = format!("data/{}.{}", table_name, FILE_EXTENSION);
+
+    match std::fs::remove_file(&file_path) {
+        Ok(_) => {
+            println!("DROP: 成功删除表文件 {}", table_name);
+            Ok(())
+        }
+        Err(err) => match err.kind() {
+            ErrorKind::NotFound if if_exists => {
+                eprintln!("DROP: 表文件 {} 不存在，跳过删除", table_name);
+                Ok(())
+            }
+            ErrorKind::NotFound => Err(ExecutionError::TableNotFound(table_name.to_string())),
+            _ => Err(ExecutionError::FileError(format!(
+                "删除表文件错误: {}",
+                err
+            ))),
+        },
+    }
 }
