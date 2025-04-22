@@ -1,8 +1,29 @@
-use crate::executor::{ExecutionError, ExecutionResult};
+use crate::executor::{ExecutionError, ExecutionResult, TABLES};
 use sqlparser::ast::{ObjectType, Statement};
 use std::io::ErrorKind;
 
-// DROP: 删除一或多个数据表。
+fn remove_table_file(table_name: &str, if_exists: bool) -> ExecutionResult<()> {
+    let file_path = format!("data/{}.json", table_name);
+
+    match std::fs::remove_file(&file_path) {
+        Ok(_) => {
+            println!("DROP: 成功删除表文件 {}", table_name);
+            Ok(())
+        }
+        Err(err) => match err.kind() {
+            ErrorKind::NotFound if if_exists => {
+                eprintln!("DROP: 表文件 {} 不存在，跳过删除", table_name);
+                Ok(())
+            }
+            ErrorKind::NotFound => Err(ExecutionError::TableNotFound(table_name.to_string())),
+            _ => Err(ExecutionError::FileError(format!(
+                "删除表文件错误: {}",
+                err
+            ))),
+        },
+    }
+}
+
 pub fn drop(stmt: &Statement) -> ExecutionResult<()> {
     if let Statement::Drop {
         object_type,
@@ -13,28 +34,18 @@ pub fn drop(stmt: &Statement) -> ExecutionResult<()> {
     {
         match object_type {
             ObjectType::Table => {
+                let mut tables = TABLES.lock().map_err(|e| {
+                    ExecutionError::ExecutionError(format!("锁定TABLES失败: {}", e))
+                })?;
+
                 for name in names {
                     let table_name = name.to_string();
-                    let file_path = format!("data/{}.csv", table_name);
 
-                    match std::fs::remove_file(&file_path) {
-                        Ok(_) => println!("DROP: 成功删除表 {}", table_name),
-                        Err(err) => match err.kind() {
-                            ErrorKind::NotFound if *if_exists => {
-                                eprintln!("DROP: 表 {} 不存在，跳过删除", table_name);
-                                return Ok(());
-                            }
-
-                            ErrorKind::NotFound => {
-                                return Err(ExecutionError::TableNotFound(table_name))
-                            }
-                            _ => {
-                                return Err(ExecutionError::FileError(format!(
-                                    "删除表错误: {}",
-                                    err
-                                )));
-                            }
-                        },
+                    if tables.remove(&table_name).is_some() || *if_exists {
+                        remove_table_file(&table_name, *if_exists)?;
+                        println!("DROP: 成功删除表 {}", table_name);
+                    } else {
+                        return Err(ExecutionError::TableNotFound(table_name));
                     }
                 }
                 Ok(())

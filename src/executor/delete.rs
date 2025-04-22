@@ -31,7 +31,7 @@ pub fn delete(stmt: &Statement) -> ExecutionResult<()> {
             let header_line = lines
                 .next()
                 .ok_or_else(|| ExecutionError::ExecutionError("文件缺少表头信息".to_string()))?;
-            let headers: Vec<String> = header_line
+            let _headers: Vec<String> = header_line
                 .as_ref()
                 .unwrap()
                 .split(',')
@@ -41,7 +41,7 @@ pub fn delete(stmt: &Statement) -> ExecutionResult<()> {
             let length_line = lines
                 .next()
                 .ok_or_else(|| ExecutionError::ExecutionError("文件缺少长度信息".to_string()))?;
-            let lengths: Vec<Option<u32>> = length_line
+            let _lengths: Vec<Option<u32>> = length_line
                 .as_ref()
                 .unwrap()
                 .split(',')
@@ -57,7 +57,7 @@ pub fn delete(stmt: &Statement) -> ExecutionResult<()> {
             let flag_line = lines
                 .next()
                 .ok_or_else(|| ExecutionError::ExecutionError("文件缺少标志信息".to_string()))?;
-            let flags: Vec<u8> = flag_line
+            let _flags: Vec<u8> = flag_line
                 .as_ref()
                 .unwrap()
                 .split(',')

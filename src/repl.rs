@@ -16,9 +16,32 @@ use std::time::{Duration, Instant};
 lazy_static! {
     static ref KEYWORD_RE: Regex = {
         let keywords = [
-            "SELECT", "FROM", "WHERE", "INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "ALTER",
-            "JOIN",  "GROUP", "ORDER", "BY", "HAVING", "LIMIT", "DISTINCT", "NULL", "PRIMARY",
-            "KEY", "FOREIGN", "REFERENCES", "UNIQUE", "CHECK", "DEFAULT", "INDEX", "VIEW",
+            "SELECT",
+            "FROM",
+            "WHERE",
+            "INSERT",
+            "UPDATE",
+            "DELETE",
+            "CREATE",
+            "DROP",
+            "ALTER",
+            "JOIN",
+            "GROUP",
+            "ORDER",
+            "BY",
+            "HAVING",
+            "LIMIT",
+            "DISTINCT",
+            "NULL",
+            "PRIMARY",
+            "KEY",
+            "FOREIGN",
+            "REFERENCES",
+            "UNIQUE",
+            "CHECK",
+            "DEFAULT",
+            "INDEX",
+            "VIEW",
         ];
         Regex::new(
             &keywords
@@ -30,7 +53,26 @@ lazy_static! {
         .unwrap()
     };
     static ref OPERATOR_RE: Regex = {
-        let operator = ["AND", "OR", "NOT", "COUNT", "SUM", "AVG", "MAX", "MIN", "LIKE", "IN", "BETWEEN", "IS", "EXISTS", "AS", "ON", "WITH", "UNION", "INTERSECT"];
+        let operator = [
+            "AND",
+            "OR",
+            "NOT",
+            "COUNT",
+            "SUM",
+            "AVG",
+            "MAX",
+            "MIN",
+            "LIKE",
+            "IN",
+            "BETWEEN",
+            "IS",
+            "EXISTS",
+            "AS",
+            "ON",
+            "WITH",
+            "UNION",
+            "INTERSECT",
+        ];
         Regex::new(
             &operator
                 .iter()
@@ -216,6 +258,14 @@ pub fn run_repl() -> Result<()> {
 
     let mut rl = Editor::<MyHelper, DefaultHistory>::new()?;
     rl.set_helper(Some(h));
+    match executor::storage::load_all_tables() {
+        Ok(_) => {
+            println!("数据加载成功");
+        }
+        Err(e) => {
+            eprintln!("数据加载失败: {}", e);
+        }
+    }
     loop {
         match rl.readline(prompt) {
             Ok(line) => {
@@ -264,5 +314,13 @@ pub fn run_repl() -> Result<()> {
         }
     }
 
+    match executor::storage::store_all_tables() {
+        Ok(_) => {
+            println!("数据保存成功");
+        }
+        Err(e) => {
+            eprintln!("数据保存失败: {}", e);
+        }
+    }
     Ok(())
 }
