@@ -1,6 +1,6 @@
 use sqlparser::ast::{CharacterLength, CreateTable, DataType, Statement};
 
-use crate::executor::types::{Column, ColumnDataType as TableDataType, Table};
+use crate::executor::table::{Column, ColumnDataType as TableDataType, Table};
 use crate::executor::{ExecutionError, ExecutionResult, TABLES};
 
 pub fn create_table(stmt: &Statement) -> ExecutionResult<()> {
@@ -19,12 +19,7 @@ pub fn create_table(stmt: &Statement) -> ExecutionResult<()> {
         }
 
         let columns = create_table_columns(create_table_stmt);
-
-        let table = Table {
-            name: table_name.clone(),
-            columns,
-            data: Vec::new(),
-        };
+        let table = Table::new(table_name.clone(), columns);
 
         tables.insert(table_name.clone(), table);
 
