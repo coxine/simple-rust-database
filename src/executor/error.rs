@@ -5,6 +5,7 @@ use std::fmt;
 pub enum ExecutionError {
     TableExists(String),
     TableNotFound(String),
+    TypeUnmatch(String),
     FileError(String),
     ParseError(String),
     ExecutionError(String),
@@ -25,6 +26,9 @@ impl fmt::Display for ExecutionError {
             }
             ExecutionError::SerializationError(name, msg) => {
                 write!(f, "序列化表 '{}' 错误: {}", name, msg)
+            }
+            ExecutionError::TypeUnmatch(msg) => {
+                write!(f, "类型不匹配: {}", msg)
             }
         }
     }

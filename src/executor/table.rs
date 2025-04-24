@@ -1,5 +1,7 @@
 use bincode::{Decode, Encode};
 
+use super::ExecutionError;
+
 #[derive(Debug, Encode, Decode)]
 pub struct Table {
     pub name: String,
@@ -16,7 +18,32 @@ impl Table {
         }
     }
 
-    // pub fn insert_row(&mut self, values: Vec<Value>) -> Result<(), String> {
+    pub fn insert_row(&mut self, values: Vec<Value>) -> Result<(), ExecutionError> {
+        if values.len() != self.columns.len() {
+            return Err(ExecutionError::TypeUnmatch(format!(
+                "插入数据列数不匹配：期望 {}, 实际 {}",
+                self.columns.len(),
+                values.len()
+            )));
+        }
+
+        for (i, value) in values.iter().enumerate() {
+            let column = &self.columns[i];
+            match (value, &column.data_type) {
+                (Value::Int(_), ColumnDataType::Int(_)) => {}
+                (Value::Varchar(_), ColumnDataType::Varchar(_)) => {}
+                (Value::Null, _) => {}
+                _ => {
+                    return Err(ExecutionError::TypeUnmatch(format!(
+                        "列 '{}' 的值类型不匹配",
+                        column.name
+                    )));
+                }
+            }
+        }
+        self.data.push(values);
+        Ok(())
+    }
     //     if values.len() != self.columns.len() {
     //         return Err(format!(
     //             "列数不匹配：期望 {}, 实际 {}",
