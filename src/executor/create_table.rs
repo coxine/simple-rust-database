@@ -23,10 +23,12 @@ pub fn create_table(stmt: &Statement) -> ExecutionResult<()> {
 
         tables.insert(table_name.clone(), table);
 
-        println!("表 '{}' 创建成功", table_name);
+        println!("CREATE: 表 '{}' 创建成功", table_name);
         Ok(())
     } else {
-        Err(ExecutionError::ParseError("非创建表语句".to_string()))
+        Err(ExecutionError::ParseError(
+            "无法解析 CREATE 语句".to_string(),
+        ))
     }
 }
 

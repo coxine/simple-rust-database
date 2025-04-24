@@ -35,6 +35,6 @@ pub fn drop(stmt: &Statement) -> ExecutionResult<()> {
             }
         }
     } else {
-        return Err(ExecutionError::ParseError("无法解析DROP语句".to_string()));
+        return Err(ExecutionError::ParseError("无法解析 DROP 语句".to_string()));
     }
 }
