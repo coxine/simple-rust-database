@@ -1,24 +1,24 @@
+use crate::executor::table::Value as TableValue;
 use crate::executor::{ExecutionError, ExecutionResult};
 use sqlparser::ast::{Expr, SetExpr, Statement, Value, Values};
 
-fn extract_row_values(expr: &Expr) -> String {
+fn extract_row_values(expr: &Expr) -> TableValue {
     match expr {
         Expr::Value(val) => match &val.value {
-            Value::SingleQuotedString(s) => s.clone(),
-            Value::Number(n, _) => n.clone(),
-            Value::Boolean(b) => b.to_string(),
-            Value::Null => "NULL".to_string(),
-            _ => val.to_string(),
+            Value::SingleQuotedString(s) => TableValue::Varchar(s.clone()),
+            Value::Number(n, _) => TableValue::Int(n.parse::<i64>().unwrap()),
+            Value::Null => TableValue::Null,
+            _ => TableValue::Varchar(val.to_string()),
         },
-        _ => expr.to_string(),
+        _ => TableValue::Varchar(expr.to_string()),
     }
 }
 
-fn extract_rows_to_insert(values: &Values) -> Vec<Vec<String>> {
+fn extract_rows_to_insert(values: &Values) -> Vec<Vec<TableValue>> {
     let mut rows_to_insert = Vec::new();
 
     for row in &values.rows {
-        let row_values: Vec<String> = row.iter().map(extract_row_values).collect();
+        let row_values: Vec<TableValue> = row.iter().map(extract_row_values).collect();
         rows_to_insert.push(row_values);
     }
 
