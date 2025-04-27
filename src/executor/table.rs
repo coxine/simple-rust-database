@@ -91,11 +91,37 @@ impl Table {
     //     Ok(matching_rows)
     // }
 
-    // fn evaluate_expr(&self, expr: &Expr, row: &[Value]) -> Result<bool, String> {
+    // fn evaluate_expr(&self, expr: &Expr, row: &[Value]) -> Result<usize, String> {
     //     // 这里需要实现表达式评估逻辑
     //     // 简单实现示例，实际需要根据您的 Expr 类型结构进行完善
     //     Err("表达式评估尚未实现".to_string())
     // }
+
+    // fn update_rows(&self, assignments: &Vec<Assignment>, where_clause: &Option<Expr>) -> Result<bool, String> {
+    //     let matching_row_indices = self.filter_rows(where_clause)?;
+    //     if matching_row_indices.is_empty() {
+    //         return Ok(0);
+    //     }
+    //     for row_idx in matching_row_indices {
+    //         for assignment in assignments {
+    //             let column_name = match assignment.target{
+    //                 AssignmentTarget::ColumnName(name) => name.to_string(),
+    //                 AssignmentTarget::Tuple(name_vec) => {
+    //                     return Err("暂不支持元组赋值".to_string())
+    //                 }     
+    //             }
+    //             let column_index = self.get_column_index(column_name);
+    //             if let Some(index) = column_index {
+    //                 let value = self.evaluate_expr(&assignment.value, &self.data[row_idx])?;
+    //                 self.data[row_idx][index] = value;
+    //             } else {
+    //                 return Err(format!("列 '{}' 不存在", assignment.column_name));
+    //             }
+    //         }
+    //     }
+    //     Ok(matching_row_indices.len())
+    // }
+    
 
     // pub fn get_column_index(&self, column_name: &str) -> Option<usize> {
     //     self.columns.iter().position(|col| col.name == column_name)
