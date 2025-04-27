@@ -1,6 +1,6 @@
 use crate::executor;
-use crate::highlighter;
 use crate::parser;
+use crate::repl::highlighter;
 use rustyline::completion::Completer;
 use rustyline::highlight::Highlighter;
 use rustyline::hint::Hinter;
