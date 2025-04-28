@@ -27,6 +27,23 @@ impl Table {
         Ok(())
     }
 
+    /// Validates that a row of values conforms to the table's schema.
+    ///
+    /// This method performs the following validations:
+    /// - Checks that the number of values matches the number of columns
+    /// - Verifies that each value's type matches its corresponding column's type
+    /// - Ensures integer and varchar values don't exceed their defined length limits
+    /// - Prevents NULL values in non-nullable or primary key columns
+    /// - Enforces primary key uniqueness constraints
+    ///
+    /// # Arguments
+    ///
+    /// * `values` - A slice of values representing a row to be inserted
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(())` if all validations pass
+    /// * `Err(ExecutionError)` with a detailed error message if any validation fails
     fn validate_row(&self, values: &[Value]) -> Result<(), ExecutionError> {
         if values.len() != self.columns.len() {
             return Err(ExecutionError::TypeUnmatch(format!(
