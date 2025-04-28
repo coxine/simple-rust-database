@@ -57,7 +57,8 @@ impl Table {
                 }
                 (Value::Varchar(_), ColumnDataType::Varchar(_)) => {}
                 (Value::Null, _) => {
-                    if !column.is_nullable {
+                    if !column.is_nullable || column.is_primary_key {
+                        println!("Field '{}' doesn't have a default value", column.name);
                         return Err(ExecutionError::TypeUnmatch(format!(
                             "列 '{}' 不允许 NULL 值",
                             column.name
@@ -73,6 +74,7 @@ impl Table {
             }
             if column.is_primary_key {
                 if self.is_primary_key_exists(value, column) {
+                    println!("Error: Duplicate entry '{}' for key 'PRIMARY'", value);
                     return Err(ExecutionError::PrimaryKeyConflictError(format!(
                         "列 '{}' 的值 '{:?}' 已存在",
                         column.name, value
@@ -201,4 +203,14 @@ pub enum Value {
     Int(i64),
     Varchar(String),
     Null,
+}
+
+impl std::fmt::Display for Value {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Value::Int(i) => write!(f, "{}", i),
+            Value::Varchar(s) => write!(f, "{}", s),
+            Value::Null => write!(f, "NULL"),
+        }
+    }
 }
