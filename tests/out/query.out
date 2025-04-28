@@ -1,0 +1,62 @@
+| id  | name    | age | bio               |
+| --- | ------- | --- | ----------------- |
+| 1   | Alice   | 25  | Loves hiking      |
+| 2   | Bob     |     | Enjoys painting   |
+| 3   | Charlie | 30  | Likes swimming    |
+| 4   | Diana   | 28  | Loves photography |
+| 5   | Eve     | 22  | Runner and gamer  |
+| 6   | Frank   |     | Musician          |
+| 7   | Grace   | 35  | Traveler          |
+
+| sku      | price | description     |
+| -------- | ----- | --------------- |
+| SKU12345 | 299   | Smartphone      |
+| SKU67890 | 99    | Wireless Mouse  |
+| SKU13579 | 499   | Laptop          |
+| SKU24680 | 59    | USB-C Hub       |
+| SKU99999 | 150   | Gaming Keyboard |
+| SKU11111 | 25    | Phone case      |
+| SKU22222 | 2999  | Premium Laptop  |
+
+| name    |
+| ------- |
+| Alice   |
+| Bob     |
+| Charlie |
+| Diana   |
+| Eve     |
+| Frank   |
+| Grace   |
+
+| price |
+| ----- |
+| 299   |
+| 99    |
+| 499   |
+| 59    |
+| 150   |
+| 25    |
+| 2999  |
+
+| name    | age |
+| ------- | --- |
+| Alice   | 25  |
+| Bob     |     |
+| Charlie | 30  |
+| Diana   | 28  |
+| Eve     | 22  |
+| Frank   |     |
+| Grace   | 35  |
+
+| sku      | description     |
+| -------- | --------------- |
+| SKU12345 | Smartphone      |
+| SKU67890 | Wireless Mouse  |
+| SKU13579 | Laptop          |
+| SKU24680 | USB-C Hub       |
+| SKU99999 | Gaming Keyboard |
+| SKU11111 | Phone case      |
+| SKU22222 | Premium Laptop  |
+
+There are no results to be displayed.
+There are no results to be displayed.
