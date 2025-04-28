@@ -2,6 +2,7 @@ use crate::executor::table::{Column, ColumnDataType, QueryResult};
 use crate::executor::ExecutionResult;
 use sqlparser::ast::{SelectItem, SetExpr, Statement};
 
+use super::table::Table;
 use super::{ExecutionError, TABLES};
 
 /// 执行查询语句
@@ -28,24 +29,8 @@ pub fn query(stmt: &Statement) -> ExecutionResult<()> {
                     return Err(ExecutionError::TableNotFound(table_name.to_string()));
                 }
 
-                let column_index = if is_wildcard(&select.projection) {
-                    None
-                } else {
-                    let columns = &select.projection;
-                    let column_names = extract_column_names(columns)?;
-                    let column_index = column_names
-                        .iter()
-                        .map(|col| {
-                            table
-                                .as_ref()
-                                .unwrap()
-                                .get_column_index(&col.name)
-                                .ok_or_else(|| ExecutionError::ColumnNotFound(col.name.clone()))
-                        })
-                        .collect::<Result<Vec<_>, _>>()?;
-                    Some(column_index)
-                };
-
+                let column_index =
+                    extract_column_index(select.projection.clone(), &table.unwrap())?;
                 let query_result = QueryResult::from_table(table.unwrap(), column_index);
                 println!("{}", query_result.display());
 
@@ -91,6 +76,41 @@ fn extract_table_name(relation: &sqlparser::ast::TableFactor) -> Result<&String,
         }
     };
     Ok(table_name)
+}
+
+/// 提取列索引
+///
+/// # Arguments
+/// * `projection` - 投影项列表
+/// * `table` - 表对象
+///
+/// # Returns
+/// * `Result<Option<Vec<usize>>, ExecutionError>` - 返回列索引列表或错误
+/// * `None` - 如果投影项是通配符
+/// * `Some(Vec<usize>)` - 如果投影项是具体列名
+///
+/// # Errors
+/// * `ExecutionError::ParseError` - 如果无法解析投影项
+/// * `ExecutionError::ColumnNotFound` - 如果列名不存在
+fn extract_column_index(
+    projection: Vec<SelectItem>,
+    table: &Table,
+) -> Result<Option<Vec<usize>>, ExecutionError> {
+    if is_wildcard(&projection) {
+        Ok(None)
+    } else {
+        let columns = &projection;
+        let column_names = extract_column_names(columns)?;
+        let column_index = column_names
+            .iter()
+            .map(|col| {
+                table
+                    .get_column_index(&col.name)
+                    .ok_or_else(|| ExecutionError::ColumnNotFound(col.name.clone()))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(Some(column_index))
+    }
 }
 
 // 检查投影项是否是通配符
