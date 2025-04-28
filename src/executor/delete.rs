@@ -16,12 +16,12 @@ pub fn delete(stmt: &Statement) -> ExecutionResult<()> {
                     ));
                 }
             };
-            let tables = TABLES.lock().unwrap();
+            let mut tables = TABLES.lock().unwrap();
             if tables.contains_key(&table_name) == false {
                 return Err(ExecutionError::TableNotFound(table_name));
             }
-            let _table = tables.get(&table_name).unwrap();
-            let _where_clause = delete.selection.as_ref();
+            let table = tables.get_mut(&table_name).unwrap();
+            let where_clause = &delete.selection;
             /*let limit = match &delete.limit {
                 Some(exp) => match exp {
                     Expr::Value(val) => match &val.value {
@@ -33,7 +33,7 @@ pub fn delete(stmt: &Statement) -> ExecutionResult<()> {
                 None => 0,
             };*/
 
-            // table.delete_rows(where_clause);
+            table.delete_rows(where_clause)?
         }
     } else {
         return Err(ExecutionError::ParseError("无法解析DELETE语句".to_string()));

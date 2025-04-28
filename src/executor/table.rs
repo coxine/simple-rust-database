@@ -1,7 +1,9 @@
 use bincode::{Decode, Encode};
 
 use super::ExecutionError;
-use sqlparser::ast::{Assignment, BinaryOperator as BinOp, Expr, Value as SqlValue};
+use sqlparser::ast::{
+    Assignment, AssignmentTarget, BinaryOperator as BinOp, Expr, Value as SqlValue,
+};
 
 #[derive(Debug, Encode, Decode)]
 pub struct Table {
@@ -98,19 +100,20 @@ impl Table {
     //     Ok(())
     // }
 
-    // pub fn delete_rows(&mut self, where_clause: &Option<Expr>) -> Result<usize, String> {
-    //     let matching_row_indices = self.filter_rows(where_clause)?;
+    pub fn delete_rows(&mut self, where_clause: &Option<Expr>) -> Result<(), ExecutionError> {
+        let matching_row_indices = self.filter_rows(where_clause)?;
 
-    //     // 从后向前删除，避免索引错位
-    //     let mut matching_row_indices = matching_row_indices;
-    //     matching_row_indices.sort_unstable_by(|a, b| b.cmp(a));
+        // 从后向前删除，避免索引错位
+        let mut matching_row_indices = matching_row_indices;
+        matching_row_indices.sort_unstable_by(|a, b| b.cmp(a));
 
-    //     for idx in matching_row_indices.iter() {
-    //         self.data.remove(*idx);
-    //     }
+        for idx in matching_row_indices.iter() {
+            println!("Delete Row {:?}", self.data[*idx]);
+            self.data.remove(*idx);
+        }
 
-    //     Ok(matching_row_indices.len())
-    // }
+        Ok(())
+    }
 
     pub fn filter_rows(&self, where_clause: &Option<Expr>) -> Result<Vec<usize>, ExecutionError> {
         if where_clause.is_none() {
@@ -137,8 +140,6 @@ impl Table {
     }
 
     fn evaluate_expr(&self, expr: &Expr, row: &[Value]) -> Result<Value, ExecutionError> {
-        // 这里需要实现表达式评估逻辑
-        // 简单实现示例，实际需要根据您的 Expr 类型结构进行完善
         match expr {
             Expr::Identifier(ident) => {
                 if ident.quote_style.is_some() {
@@ -234,7 +235,7 @@ impl Table {
     }
 
     pub fn update_rows(
-        &self,
+        &mut self,
         assignments: &Vec<Assignment>,
         where_clause: &Option<Expr>,
     ) -> Result<(), ExecutionError> {
@@ -243,29 +244,28 @@ impl Table {
             return Ok(());
         }
         for row_idx in matching_row_indices {
-            println!(
-                "{}",
-                self.data[row_idx]
-                    .iter()
-                    .map(|v| v.to_string())
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            );
-            /*for assignment in assignments {
-                let column_name = match assignment.target{
+            for assignment in assignments {
+                let column_name = match &assignment.target {
                     AssignmentTarget::ColumnName(name) => name.to_string(),
-                    AssignmentTarget::Tuple(name_vec) => {
-                        return Err("暂不支持元组赋值".to_string())
+                    AssignmentTarget::Tuple(_name_vec) => {
+                        return Err(ExecutionError::ExecutionError("不支持元组赋值".to_string()));
                     }
-                }
-                let column_index = self.get_column_index(column_name);
+                };
+                let column_index = self.get_column_index(&column_name);
                 if let Some(index) = column_index {
                     let value = self.evaluate_expr(&assignment.value, &self.data[row_idx])?;
+                    //类型匹配(value, self.data[row_idx][index])?
+
+                    let row = self.data[row_idx].clone();
                     self.data[row_idx][index] = value;
+                    println!("Update Row from {:?} to {:?}", row, self.data[row_idx]);
                 } else {
-                    return Err(format!("列 '{}' 不存在", assignment.column_name));
+                    return Err(ExecutionError::ExecutionError(format!(
+                        "列 '{}' 在表 '{}' 中不存在",
+                        column_name, self.name
+                    )));
                 }
-            }*/
+            }
         }
         Ok(())
     }

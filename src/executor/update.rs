@@ -17,11 +17,11 @@ pub fn update(stmt: &Statement) -> ExecutionResult<()> {
                 ));
             }
         };
-        let tables = TABLES.lock().unwrap();
+        let mut tables = TABLES.lock().unwrap();
         if tables.contains_key(&table_name) == false {
             return Err(ExecutionError::TableNotFound(table_name));
         }
-        let table = tables.get(&table_name).unwrap();
+        let table = tables.get_mut(&table_name).unwrap();
         let where_clause = selection;
 
         table.update_rows(assignments, where_clause)?;
