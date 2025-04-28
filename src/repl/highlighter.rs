@@ -1,7 +1,6 @@
 use lazy_static::lazy_static;
 use regex::Regex;
 use rustyline::highlight::{CmdKind, Highlighter, MatchingBracketHighlighter};
-use sqlparser::keywords;
 use std::borrow::Cow::{self, Borrowed};
 use std::cell::Cell;
 use std::time::{Duration, Instant};

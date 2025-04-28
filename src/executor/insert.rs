@@ -102,7 +102,7 @@ pub fn insert(stmt: &Statement) -> ExecutionResult<()> {
             SetExpr::Values(values) => extract_rows_to_insert(values),
             _ => {
                 return Err(ExecutionError::ParseError(
-                    "无法1解析 INSERT 语句".to_string(),
+                    "无法解析 INSERT 语句".to_string(),
                 ));
             }
         };
