@@ -2,9 +2,9 @@ name: 🦀 Rust CI Workflow
 
 on:
   push:
-    branches: [ "main", "master" ]
+    branches: ["main", "master"]
   pull_request:
-    branches: [ "main", "master" ]
+    branches: ["main", "master"]
 
 env:
   CARGO_TERM_COLOR: always
@@ -18,11 +18,10 @@ jobs:
       - name: Checkout source code
         uses: actions/checkout@v4
 
-      - name: Install Rust (if needed)
-        uses: actions-rs/toolchain@v1
+      - name: Set up Rust
+        uses: actions/setup-rust@v1
         with:
-          toolchain: stable
-          override: true
+          rust-version: stable
 
       - name: Build the project
         run: cargo build --verbose
