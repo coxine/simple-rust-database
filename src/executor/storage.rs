@@ -1,5 +1,6 @@
 use crate::executor::error::{ExecutionError, ExecutionResult};
 use crate::executor::TABLES;
+use crate::utils;
 use bincode::config;
 use std::fs::{create_dir_all, read_dir, File};
 use std::io::ErrorKind;
@@ -60,13 +61,10 @@ pub fn remove_table_file(table_name: &str, if_exists: bool) -> ExecutionResult<(
     let file_path = format!("data/{}.{}", table_name, FILE_EXTENSION);
 
     match std::fs::remove_file(&file_path) {
-        Ok(_) => {
-            println!("DROP: 成功删除表文件 {}", table_name);
-            Ok(())
-        }
+        Ok(_) => Ok(()),
         Err(err) => match err.kind() {
             ErrorKind::NotFound if if_exists => {
-                eprintln!("DROP: 表文件 {} 不存在，跳过删除", table_name);
+                utils::log_warning(&format!("DROP: 表文件 {} 不存在，跳过删除", table_name));
                 Ok(())
             }
             ErrorKind::NotFound => Err(ExecutionError::TableNotFound(table_name.to_string())),

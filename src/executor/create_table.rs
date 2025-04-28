@@ -2,6 +2,7 @@ use sqlparser::ast::{CharacterLength, CreateTable, DataType, Statement};
 
 use crate::executor::table::{Column, ColumnDataType as TableDataType, Table};
 use crate::executor::{ExecutionError, ExecutionResult, TABLES};
+use crate::utils;
 
 pub fn create_table(stmt: &Statement) -> ExecutionResult<()> {
     if let Statement::CreateTable(create_table_stmt) = stmt {
@@ -23,7 +24,7 @@ pub fn create_table(stmt: &Statement) -> ExecutionResult<()> {
 
         tables.insert(table_name.clone(), table);
 
-        println!("CREATE: 表 '{}' 创建成功", table_name);
+        utils::log_info(format!("CREATE: 表 '{}' 创建成功", table_name));
         Ok(())
     } else {
         Err(ExecutionError::ParseError(

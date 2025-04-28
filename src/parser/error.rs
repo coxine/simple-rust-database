@@ -9,7 +9,7 @@ pub enum ParserError {
 impl fmt::Display for ParserError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ParserError::SqlParseError(msg) => write!(f, "SQL解析错误: {}", msg),
+            ParserError::SqlParseError(msg) => write!(f, "{}", msg),
         }
     }
 }

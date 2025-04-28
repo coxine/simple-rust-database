@@ -1,5 +1,6 @@
 use crate::executor::storage::remove_table_file;
 use crate::executor::{ExecutionError, ExecutionResult, TABLES};
+use crate::utils;
 use sqlparser::ast::{ObjectType, Statement};
 
 pub fn drop(stmt: &Statement) -> ExecutionResult<()> {
@@ -21,7 +22,7 @@ pub fn drop(stmt: &Statement) -> ExecutionResult<()> {
 
                     if tables.remove(&table_name).is_some() || *if_exists {
                         remove_table_file(&table_name, *if_exists)?;
-                        println!("DROP: 成功删除表 {}", table_name);
+                        utils::log_info(format!("DROP: 成功删除表 {}", table_name));
                     } else {
                         return Err(ExecutionError::TableNotFound(table_name));
                     }

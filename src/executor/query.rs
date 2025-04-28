@@ -1,4 +1,4 @@
-use crate::executor::{ExecutionError, ExecutionResult};
+use crate::executor::ExecutionResult;
 use sqlparser::ast::Statement;
 pub fn query(stmt: &Statement) -> ExecutionResult<()> {
     println!("Query: {:?}", stmt);
