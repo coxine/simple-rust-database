@@ -11,6 +11,7 @@ pub enum ExecutionError {
     ExecutionError(String),
     DeserializationError(String, String),
     SerializationError(String, String),
+    PrimaryKeyConflictError(String),
 }
 
 impl fmt::Display for ExecutionError {
@@ -29,6 +30,9 @@ impl fmt::Display for ExecutionError {
             }
             ExecutionError::TypeUnmatch(msg) => {
                 write!(f, "类型不匹配: {}", msg)
+            }
+            ExecutionError::PrimaryKeyConflictError(msg) => {
+                write!(f, "主键冲突: {}", msg)
             }
         }
     }

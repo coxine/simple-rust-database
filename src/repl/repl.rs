@@ -1,6 +1,7 @@
 use crate::executor;
 use crate::parser;
 use crate::repl::highlighter;
+use crate::utils;
 use rustyline::completion::Completer;
 use rustyline::highlight::Highlighter;
 use rustyline::hint::Hinter;
@@ -75,10 +76,10 @@ pub fn run_repl() -> Result<()> {
     rl.set_helper(Some(h));
     match executor::storage::load_all_tables() {
         Ok(_) => {
-            println!("数据加载成功");
+            utils::log_info("数据加载成功");
         }
         Err(e) => {
-            eprintln!("数据加载失败: {}", e);
+            utils::log_error(format!("数据加载失败: {}", e));
         }
     }
     loop {
@@ -97,17 +98,18 @@ pub fn run_repl() -> Result<()> {
                     Ok(ast) => {
                         for stmt in &ast {
                             match executor::execute_statement(stmt) {
-                                Ok(_) => {
-                                    println!("执行成功");
-                                }
+                                Ok(_) => {}
                                 Err(e) => {
-                                    eprintln!("执行失败: {}", e);
+                                    utils::log_error(e.to_string());
                                 }
                             }
                         }
                     }
                     Err(e) => {
-                        eprintln!("解析错误: {}\n如需退出请输入 `exit` 或 `Ctrl+D`", e);
+                        utils::log_error(format!(
+                            "解析错误: {}\n如需退出请输入 `exit` 或 `Ctrl+D`",
+                            e
+                        ));
                     }
                 }
             }
@@ -123,7 +125,7 @@ pub fn run_repl() -> Result<()> {
             }
 
             Err(err) => {
-                eprintln!("读取错误: {:?}", err);
+                utils::log_error(format!("读取错误: {:?}", err));
                 break;
             }
         }
@@ -131,10 +133,10 @@ pub fn run_repl() -> Result<()> {
 
     match executor::storage::store_all_tables() {
         Ok(_) => {
-            println!("数据保存成功");
+            utils::log_info("数据保存成功");
         }
         Err(e) => {
-            eprintln!("数据保存失败: {}", e);
+            utils::log_error(format!("数据保存失败: {}", e));
         }
     }
     Ok(())

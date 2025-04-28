@@ -19,6 +19,12 @@ impl Table {
     }
 
     pub fn insert_row(&mut self, values: Vec<Value>) -> Result<(), ExecutionError> {
+        self.validate_row(&values)?;
+        self.data.push(values);
+        Ok(())
+    }
+
+    fn validate_row(&self, values: &[Value]) -> Result<(), ExecutionError> {
         if values.len() != self.columns.len() {
             return Err(ExecutionError::TypeUnmatch(format!(
                 "插入数据列数不匹配：期望 {}, 实际 {}",
@@ -30,9 +36,34 @@ impl Table {
         for (i, value) in values.iter().enumerate() {
             let column = &self.columns[i];
             match (value, &column.data_type) {
+                (Value::Int(val), ColumnDataType::Int(Some(max_len))) => {
+                    if val.to_string().len() > *max_len as usize {
+                        return Err(ExecutionError::TypeUnmatch(format!(
+                            "列 '{}' 的整数值 {} 超出长度限制 {}",
+                            column.name, val, max_len
+                        )));
+                    }
+                }
                 (Value::Int(_), ColumnDataType::Int(_)) => {}
+                (Value::Varchar(val), ColumnDataType::Varchar(Some(max_len))) => {
+                    if val.len() > *max_len as usize {
+                        return Err(ExecutionError::TypeUnmatch(format!(
+                            "列 '{}' 的字符串值长度 {} 超出限制 {}",
+                            column.name,
+                            val.len(),
+                            max_len
+                        )));
+                    }
+                }
                 (Value::Varchar(_), ColumnDataType::Varchar(_)) => {}
-                (Value::Null, _) => {}
+                (Value::Null, _) => {
+                    if !column.is_nullable {
+                        return Err(ExecutionError::TypeUnmatch(format!(
+                            "列 '{}' 不允许 NULL 值",
+                            column.name
+                        )));
+                    }
+                }
                 _ => {
                     return Err(ExecutionError::TypeUnmatch(format!(
                         "列 '{}' 的值类型不匹配",
@@ -40,10 +71,18 @@ impl Table {
                     )));
                 }
             }
+            if column.is_primary_key {
+                if self.is_primary_key_exists(value, column) {
+                    return Err(ExecutionError::PrimaryKeyConflictError(format!(
+                        "列 '{}' 的值 '{:?}' 已存在",
+                        column.name, value
+                    )));
+                }
+            }
         }
-        self.data.push(values);
         Ok(())
     }
+
     //     if values.len() != self.columns.len() {
     //         return Err(format!(
     //             "列数不匹配：期望 {}, 实际 {}",
@@ -108,7 +147,7 @@ impl Table {
     //                 AssignmentTarget::ColumnName(name) => name.to_string(),
     //                 AssignmentTarget::Tuple(name_vec) => {
     //                     return Err("暂不支持元组赋值".to_string())
-    //                 }     
+    //                 }
     //             }
     //             let column_index = self.get_column_index(column_name);
     //             if let Some(index) = column_index {
@@ -121,11 +160,26 @@ impl Table {
     //     }
     //     Ok(matching_row_indices.len())
     // }
-    
 
     // pub fn get_column_index(&self, column_name: &str) -> Option<usize> {
     //     self.columns.iter().position(|col| col.name == column_name)
     // }
+
+    fn is_primary_key_exists(&self, value: &Value, column: &Column) -> bool {
+        if !column.is_primary_key {
+            return false;
+        }
+
+        if let Some(column_index) = self.columns.iter().position(|col| col.name == column.name) {
+            for row in &self.data {
+                if row[column_index] == *value {
+                    return true;
+                }
+            }
+        }
+
+        false
+    }
 }
 
 #[derive(Debug, Encode, Decode)]
@@ -142,7 +196,7 @@ pub enum ColumnDataType {
     Varchar(Option<u64>),
 }
 
-#[derive(Debug, Encode, Decode)]
+#[derive(Debug, Encode, Decode, Clone, PartialEq)]
 pub enum Value {
     Int(i64),
     Varchar(String),
