@@ -1,6 +1,7 @@
 use bincode::{Decode, Encode};
 
 use super::ExecutionError;
+use sqlparser::ast::{BinaryOperator as BinOp, Expr, Value as SqlValue,Assignment};
 
 #[derive(Debug, Encode, Decode)]
 pub struct Table {
@@ -111,61 +112,147 @@ impl Table {
     //     Ok(matching_row_indices.len())
     // }
 
-    // pub fn filter_rows(&self, where_clause: &Option<Expr>) -> Result<Vec<usize>, String> {
-    //     if where_clause.is_none() {
-    //         // 如果没有 WHERE 子句，返回所有行的索引
-    //         return Ok((0..self.data.len()).collect());
-    //     }
+    pub fn filter_rows(&self, where_clause: &Option<Expr>) -> Result<Vec<usize>, ExecutionError> {
+        if where_clause.is_none() {
+            // 如果没有 WHERE 子句，返回所有行的索引
+            return Ok((0..self.data.len()).collect());
+        }
+        let expr = where_clause.as_ref().unwrap();
+        let mut matching_rows = Vec::new();
 
-    //     let expr = where_clause.as_ref().unwrap();
-    //     let mut matching_rows = Vec::new();
+        // 遍历所有行，评估 WHERE 表达式
+        for (row_idx, row) in self.data.iter().enumerate() {
+            match self.evaluate_expr(expr, row) {
+                Ok(Value::Bool(true)) => matching_rows.push(row_idx),
+                Ok(Value::Bool(false)) => {}
+                Ok(_)=>{return Err(ExecutionError::ExecutionError("筛选条件必须可判断的表达式".to_string()))}
+                Err(e) => return Err(e),
+            }
+        }
+        Ok(matching_rows)
+    }
 
-    //     // 遍历所有行，评估 WHERE 表达式
-    //     for (row_idx, row) in self.data.iter().enumerate() {
-    //         match self.evaluate_expr(expr, row) {
-    //             Ok(true) => matching_rows.push(row_idx),
-    //             Ok(false) => {}
-    //             Err(e) => return Err(e),
-    //         }
-    //     }
+    fn evaluate_expr(&self, expr: &Expr, row: &[Value]) -> Result<Value, ExecutionError> {
+        // 这里需要实现表达式评估逻辑
+        // 简单实现示例，实际需要根据您的 Expr 类型结构进行完善
+        match expr {
+            Expr::Identifier(ident) => {
+                let column_name = ident.value.clone();
+                if let Some(column_index) =
+                    self.columns.iter().position(|col| col.name == column_name)
+                {
+                    return Ok(row[column_index].clone());
+                } else {
+                    return Err(ExecutionError::ExecutionError(format!(
+                        "列 '{}' 在表 '{}' 中不存在",
+                        column_name, self.name
+                    )));
+                }
+            }
+            Expr::BinaryOp { left, op, right } => {
+                let left_value = self.evaluate_expr(left, row)?;
+                let right_value = self.evaluate_expr(right, row)?;
+                macro_rules! numeric_binop {
+                    ($lhs:expr, $rhs:expr, $op:tt) => {
+                        match ($lhs, $rhs) {
+                            (Value::Int(l), Value::Int(r)) => Ok(Value::Int(l $op r)),
+                            _ => return Err(ExecutionError::ExecutionError(
+                                "不匹配的操作数类型".to_string()
+                            ))
+                        }
+                    }
+                }
+                macro_rules! relop_binop {
+                    ($lhs:expr, $rhs:expr, $op:tt) => {
+                        match ($lhs, $rhs) {
+                            (Value::Int(l), Value::Int(r)) => Ok(Value::Bool(l $op r)),
+                            (Value::Varchar(l), Value::Varchar(r)) => Ok(Value::Bool(l $op r)),
+                            _ => return Err(ExecutionError::ExecutionError(
+                                "不匹配的操作数类型".to_string()
+                            ))
+                        }
+                    };
+                }
+                macro_rules! bool_binop {
+                    ($lhs:expr, $rhs:expr, $op:tt) => {
+                        match ($lhs, $rhs) {
+                            (Value::Bool(l), Value::Bool(r)) => Ok(Value::Int(if l $op r { 1 } else { 0 })),
+                            _ => return Err(ExecutionError::ExecutionError(
+                                "不匹配的操作数类型".to_string()
+                            ))
+                        }
+                    }
+                }
+                match op {
+                    BinOp::Plus => numeric_binop!(left_value, right_value, +),
+                    BinOp::Minus => numeric_binop!(left_value, right_value, -),
+                    BinOp::Multiply => numeric_binop!(left_value, right_value, *),
+                    BinOp::Divide => {
+                        if let Value::Int(0) = right_value {
+                            return Err(ExecutionError::ExecutionError("除数不能为零".to_string()));
+                        }
+                        numeric_binop!(left_value, right_value, /)
+                    }
+                    BinOp::Eq => relop_binop!(left_value, right_value, ==),
+                    BinOp::NotEq => relop_binop!(left_value, right_value, !=),
+                    BinOp::Gt => relop_binop!(left_value, right_value, >),
+                    BinOp::Lt => relop_binop!(left_value, right_value, <),
+                    BinOp::GtEq => relop_binop!(left_value, right_value, >=),
+                    BinOp::LtEq => relop_binop!(left_value, right_value, <=),
+                    BinOp::And => bool_binop!(left_value, right_value, &&),
+                    BinOp::Or => bool_binop!(left_value, right_value, ||),
+                    _ => {
+                        return Err(ExecutionError::ExecutionError(format!(
+                            "不支持的二元操作符 {}",
+                            op.to_string()
+                        )))
+                    }
+                }
+            }
+            Expr::Value(value) => match &value.value {
+                SqlValue::SingleQuotedString(s) => Ok(Value::Varchar(s.clone())),
+                SqlValue::Number(n, _) => Ok(Value::Int(n.parse::<i64>().unwrap())),
+                SqlValue::Boolean(b) => Ok(Value::Bool(b.clone())),
+                SqlValue::Null => Ok(Value::Null),
+                _ => Ok(Value::Varchar(value.to_string())),
+            },
+            _ => {
+                return Err(ExecutionError::ExecutionError(format!(
+                    "不支持的表达式 {}",
+                    expr.to_string()
+                )))
+            }
+        }
+    }
 
-    //     Ok(matching_rows)
-    // }
+     fn update_rows(&self, assignments: &Vec<Assignment>, where_clause: &Option<Expr>) -> Result<(), ExecutionError> {
+         let matching_row_indices = self.filter_rows(where_clause)?;
+         if matching_row_indices.is_empty() {
+             return Ok(());
+         }
+         /*for row_idx in matching_row_indices {
+             for assignment in assignments {
+                 let column_name = match assignment.target{
+                     AssignmentTarget::ColumnName(name) => name.to_string(),
+                     AssignmentTarget::Tuple(name_vec) => {
+                         return Err("暂不支持元组赋值".to_string())
+                     }
+                 }
+                 let column_index = self.get_column_index(column_name);
+                 if let Some(index) = column_index {
+                     let value = self.evaluate_expr(&assignment.value, &self.data[row_idx])?;
+                     self.data[row_idx][index] = value;
+                 } else {
+                     return Err(format!("列 '{}' 不存在", assignment.column_name));
+                 }
+             }
+         }*/
+         Ok(())
+     }
 
-    // fn evaluate_expr(&self, expr: &Expr, row: &[Value]) -> Result<usize, String> {
-    //     // 这里需要实现表达式评估逻辑
-    //     // 简单实现示例，实际需要根据您的 Expr 类型结构进行完善
-    //     Err("表达式评估尚未实现".to_string())
-    // }
-
-    // fn update_rows(&self, assignments: &Vec<Assignment>, where_clause: &Option<Expr>) -> Result<bool, String> {
-    //     let matching_row_indices = self.filter_rows(where_clause)?;
-    //     if matching_row_indices.is_empty() {
-    //         return Ok(0);
-    //     }
-    //     for row_idx in matching_row_indices {
-    //         for assignment in assignments {
-    //             let column_name = match assignment.target{
-    //                 AssignmentTarget::ColumnName(name) => name.to_string(),
-    //                 AssignmentTarget::Tuple(name_vec) => {
-    //                     return Err("暂不支持元组赋值".to_string())
-    //                 }
-    //             }
-    //             let column_index = self.get_column_index(column_name);
-    //             if let Some(index) = column_index {
-    //                 let value = self.evaluate_expr(&assignment.value, &self.data[row_idx])?;
-    //                 self.data[row_idx][index] = value;
-    //             } else {
-    //                 return Err(format!("列 '{}' 不存在", assignment.column_name));
-    //             }
-    //         }
-    //     }
-    //     Ok(matching_row_indices.len())
-    // }
-
-    // pub fn get_column_index(&self, column_name: &str) -> Option<usize> {
-    //     self.columns.iter().position(|col| col.name == column_name)
-    // }
+     pub fn get_column_index(&self, column_name: &str) -> Option<usize> {
+         self.columns.iter().position(|col| col.name == column_name)
+     }
 
     fn is_primary_key_exists(&self, value: &Value, column: &Column) -> bool {
         if !column.is_primary_key {
@@ -202,6 +289,7 @@ pub enum ColumnDataType {
 pub enum Value {
     Int(i64),
     Varchar(String),
+    Bool(bool),
     Null,
 }
 
