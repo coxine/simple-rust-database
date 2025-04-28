@@ -1,9 +1,15 @@
+use std::sync::atomic::Ordering;
+
+use utils::IS_INFO_OUTPUT;
+
 pub mod executor;
 pub mod parser;
 pub mod repl;
 pub mod utils;
 
 pub fn execute_sql(sql_statement: &str) -> bool {
+    IS_INFO_OUTPUT.store(false, Ordering::Relaxed);
+
     match parser::parse_sql(sql_statement) {
         Ok(statements) => {
             for statement in statements {
