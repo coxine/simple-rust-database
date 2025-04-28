@@ -273,7 +273,9 @@ impl Table {
                     let value = self.evaluate_expr(&assignment.value, &self.data[row_idx])?;
                     //类型匹配(value, self.data[row_idx][index])?
 
-                    let row = self.data[row_idx].clone();
+                    let mut row = self.data[row_idx].clone();
+                    row[index] = value.clone();
+                    self.validate_row(&row)?;
                     self.data[row_idx][index] = value;
                     println!("Update Row from {:?} to {:?}", row, self.data[row_idx]);
                 } else {
