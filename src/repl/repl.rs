@@ -24,9 +24,9 @@ impl Validator for MyHelper {
             ctx.input()
         };
         let input = if let Some(pos) = last_line.find("--") {
-            &ctx.input()[..pos]
+            &last_line[..pos]
         } else {
-            ctx.input()
+            last_line
         };
 
         let result = if !input.ends_with(';') {

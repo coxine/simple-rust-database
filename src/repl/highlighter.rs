@@ -1,6 +1,7 @@
 use lazy_static::lazy_static;
 use regex::Regex;
 use rustyline::highlight::{CmdKind, Highlighter, MatchingBracketHighlighter};
+use sqlparser::keywords;
 use std::borrow::Cow::{self, Borrowed};
 use std::cell::Cell;
 use std::time::{Duration, Instant};
@@ -36,13 +37,14 @@ lazy_static! {
             "INDEX",
             "VIEW",
         ];
-        Regex::new(
+        Regex::new(&format!(
+            "(?i){}",
             &keywords
                 .iter()
-                .map(|&kw| format!(r"(?i)\b{}\b", regex::escape(kw)))
+                .map(|&kw| format!(r"\b{}\b", regex::escape(kw)))
                 .collect::<Vec<String>>()
                 .join("|"),
-        )
+        ))
         .unwrap()
     };
     static ref OPERATOR_RE: Regex = {
@@ -66,15 +68,17 @@ lazy_static! {
             "UNION",
             "INTERSECT",
         ];
-        Regex::new(
-            &operator
+        Regex::new(&format!(
+            "(?i){}",
+            operator
                 .iter()
-                .map(|&kw| format!(r"(?i)\b{}\b", regex::escape(kw)))
+                .map(|&kw| format!(r"\b{}\b", kw))
                 .collect::<Vec<String>>()
-                .join("|"),
-        )
+                .join("|")
+        ))
         .unwrap()
     };
+    static ref ID_RE: Regex = Regex::new(r"[A-Za-z0-9_]+").unwrap();
     static ref OTHERCHAR_RE: Regex = Regex::new(r"[\u4e00-\u9fa5]+").unwrap();
     static ref WHITESPACE_RE: Regex = Regex::new(r"[\t \n\r]+").unwrap();
     static ref STRING_RE: Regex = Regex::new(r#""(\\.|[^"])*"|'(\\.|[^'])*'"#).unwrap();
@@ -183,6 +187,15 @@ impl Highlighter for SqlHighlighter {
                 }
             }
 
+            // 匹配单词(Identifier)
+            if let Some(m) = ID_RE.find(remaining) {
+                if m.start() == 0 {
+                    tokens.push(format!("{}", &remaining[m.start()..m.end()]));
+                    current_pos += m.end();
+                    continue;
+                }
+            }
+
             // 匹配其他字符 -- 目前仅考虑了中文
             if let Some(m) = OTHERCHAR_RE.find(remaining) {
                 if m.start() == 0 {
@@ -193,6 +206,7 @@ impl Highlighter for SqlHighlighter {
             }
 
             // 如果没有匹配到任何规则，则将当前字符作为普通文本处理
+
             tokens.push(bracket_str[current_pos..current_pos + 1].to_string());
             current_pos += 1;
         }
