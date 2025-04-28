@@ -1,7 +1,7 @@
 use bincode::{Decode, Encode};
 
 use super::ExecutionError;
-use sqlparser::ast::{BinaryOperator as BinOp, Expr, Value as SqlValue,Assignment};
+use sqlparser::ast::{Assignment, BinaryOperator as BinOp, Expr, Value as SqlValue};
 
 #[derive(Debug, Encode, Decode)]
 pub struct Table {
@@ -125,7 +125,11 @@ impl Table {
             match self.evaluate_expr(expr, row) {
                 Ok(Value::Bool(true)) => matching_rows.push(row_idx),
                 Ok(Value::Bool(false)) => {}
-                Ok(_)=>{return Err(ExecutionError::ExecutionError("筛选条件必须可判断的表达式".to_string()))}
+                Ok(_) => {
+                    return Err(ExecutionError::ExecutionError(
+                        "筛选条件必须可判断的表达式".to_string(),
+                    ))
+                }
                 Err(e) => return Err(e),
             }
         }
@@ -137,16 +141,20 @@ impl Table {
         // 简单实现示例，实际需要根据您的 Expr 类型结构进行完善
         match expr {
             Expr::Identifier(ident) => {
-                let column_name = ident.value.clone();
-                if let Some(column_index) =
-                    self.columns.iter().position(|col| col.name == column_name)
-                {
-                    return Ok(row[column_index].clone());
+                if ident.quote_style.is_some() {
+                    Ok(Value::Varchar(ident.value.clone()))
                 } else {
-                    return Err(ExecutionError::ExecutionError(format!(
-                        "列 '{}' 在表 '{}' 中不存在",
-                        column_name, self.name
-                    )));
+                    let column_name = ident.value.clone();
+                    if let Some(column_index) =
+                        self.columns.iter().position(|col| col.name == column_name)
+                    {
+                        return Ok(row[column_index].clone());
+                    } else {
+                        return Err(ExecutionError::ExecutionError(format!(
+                            "列 '{}' 在表 '{}' 中不存在",
+                            column_name, self.name
+                        )));
+                    }
                 }
             }
             Expr::BinaryOp { left, op, right } => {
@@ -225,34 +233,46 @@ impl Table {
         }
     }
 
-     fn update_rows(&self, assignments: &Vec<Assignment>, where_clause: &Option<Expr>) -> Result<(), ExecutionError> {
-         let matching_row_indices = self.filter_rows(where_clause)?;
-         if matching_row_indices.is_empty() {
-             return Ok(());
-         }
-         /*for row_idx in matching_row_indices {
-             for assignment in assignments {
-                 let column_name = match assignment.target{
-                     AssignmentTarget::ColumnName(name) => name.to_string(),
-                     AssignmentTarget::Tuple(name_vec) => {
-                         return Err("暂不支持元组赋值".to_string())
-                     }
-                 }
-                 let column_index = self.get_column_index(column_name);
-                 if let Some(index) = column_index {
-                     let value = self.evaluate_expr(&assignment.value, &self.data[row_idx])?;
-                     self.data[row_idx][index] = value;
-                 } else {
-                     return Err(format!("列 '{}' 不存在", assignment.column_name));
-                 }
-             }
-         }*/
-         Ok(())
-     }
+    pub fn update_rows(
+        &self,
+        assignments: &Vec<Assignment>,
+        where_clause: &Option<Expr>,
+    ) -> Result<(), ExecutionError> {
+        let matching_row_indices = self.filter_rows(where_clause)?;
+        if matching_row_indices.is_empty() {
+            return Ok(());
+        }
+        for row_idx in matching_row_indices {
+            println!(
+                "{}",
+                self.data[row_idx]
+                    .iter()
+                    .map(|v| v.to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            );
+            /*for assignment in assignments {
+                let column_name = match assignment.target{
+                    AssignmentTarget::ColumnName(name) => name.to_string(),
+                    AssignmentTarget::Tuple(name_vec) => {
+                        return Err("暂不支持元组赋值".to_string())
+                    }
+                }
+                let column_index = self.get_column_index(column_name);
+                if let Some(index) = column_index {
+                    let value = self.evaluate_expr(&assignment.value, &self.data[row_idx])?;
+                    self.data[row_idx][index] = value;
+                } else {
+                    return Err(format!("列 '{}' 不存在", assignment.column_name));
+                }
+            }*/
+        }
+        Ok(())
+    }
 
-     pub fn get_column_index(&self, column_name: &str) -> Option<usize> {
-         self.columns.iter().position(|col| col.name == column_name)
-     }
+    pub fn get_column_index(&self, column_name: &str) -> Option<usize> {
+        self.columns.iter().position(|col| col.name == column_name)
+    }
 
     fn is_primary_key_exists(&self, value: &Value, column: &Column) -> bool {
         if !column.is_primary_key {
@@ -298,6 +318,7 @@ impl std::fmt::Display for Value {
         match self {
             Value::Int(i) => write!(f, "{}", i),
             Value::Varchar(s) => write!(f, "{}", s),
+            Value::Bool(b) => write!(f, "{}", b),
             Value::Null => write!(f, "NULL"),
         }
     }

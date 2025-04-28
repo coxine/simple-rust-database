@@ -7,10 +7,12 @@ fn extract_row_values(expr: &Expr) -> TableValue {
     match expr {
         Expr::Value(val) => match &val.value {
             Value::SingleQuotedString(s) => TableValue::Varchar(s.clone()),
+            Value::DoubleQuotedString(s) => {TableValue::Varchar(s.clone())},
             Value::Number(n, _) => TableValue::Int(n.parse::<i64>().unwrap()),
             Value::Null => TableValue::Null,
-            _ => TableValue::Varchar(val.to_string()),
+            _ => {TableValue::Varchar(val.to_string())},
         },
+        Expr::Identifier(ident) => TableValue::Varchar(ident.value.clone()),
         _ => TableValue::Varchar(expr.to_string()),
     }
 }

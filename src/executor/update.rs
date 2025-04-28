@@ -1,5 +1,5 @@
 use crate::executor::{ExecutionError, ExecutionResult, TABLES};
-use sqlparser::ast::{ Statement, TableFactor};
+use sqlparser::ast::{Statement, TableFactor};
 
 pub fn update(stmt: &Statement) -> ExecutionResult<()> {
     if let Statement::Update {
@@ -22,10 +22,9 @@ pub fn update(stmt: &Statement) -> ExecutionResult<()> {
             return Err(ExecutionError::TableNotFound(table_name));
         }
         let table = tables.get(&table_name).unwrap();
-        let where_clause = selection.as_ref();
-        
-        // table.update_raws(assignments,where_clause);
+        let where_clause = selection;
 
+        table.update_rows(assignments, where_clause)?;
     } else {
         return Err(ExecutionError::ParseError("无法解析UPDATE语句".to_string()));
     }
