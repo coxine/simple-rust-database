@@ -1,5 +1,7 @@
 use bincode::{Decode, Encode};
 
+use crate::utils::log_info;
+
 use super::ExecutionError;
 use sqlparser::ast::{
     Assignment, AssignmentTarget, BinaryOperator as BinOp, Expr, Value as SqlValue,
@@ -104,18 +106,6 @@ impl Table {
         }
         Ok(())
     }
-
-    //     if values.len() != self.columns.len() {
-    //         return Err(format!(
-    //             "列数不匹配：期望 {}, 实际 {}",
-    //             self.columns.len(),
-    //             values.len()
-    //         ));
-    //     }
-
-    //     self.data.push(values);
-    //     Ok(())
-    // }
 
     pub fn delete_rows(&mut self, where_clause: &Option<Expr>) -> Result<(), ExecutionError> {
         let matching_row_indices = self.filter_rows(where_clause)?;
@@ -271,13 +261,12 @@ impl Table {
                 let column_index = self.get_column_index(&column_name);
                 if let Some(index) = column_index {
                     let value = self.evaluate_expr(&assignment.value, &self.data[row_idx])?;
-                    //类型匹配(value, self.data[row_idx][index])?
-
+                    
                     let mut row = self.data[row_idx].clone();
                     row[index] = value.clone();
                     self.validate_row(&row)?;
                     self.data[row_idx][index] = value;
-                    println!("Update Row from {:?} to {:?}", row, self.data[row_idx]);
+                    log_info(format!("更新行 {:?} 为 {:?}", row_idx, self.data[row_idx]));
                 } else {
                     return Err(ExecutionError::ExecutionError(format!(
                         "列 '{}' 在表 '{}' 中不存在",
