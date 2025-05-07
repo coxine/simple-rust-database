@@ -1,4 +1,5 @@
-use crate::executor::table::{Column, ColumnDataType, QueryResult};
+use crate::executor::query_result::QueryResult;
+use crate::executor::table::{Column, ColumnDataType};
 use crate::executor::ExecutionResult;
 use sqlparser::ast::{SelectItem, SetExpr, Statement};
 
