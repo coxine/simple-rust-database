@@ -1,15 +1,17 @@
-use crate::executor::table::{Column, Table, Value};
+use sqlparser::ast::{Expr, SelectItem};
+
+use crate::executor::table::{Table, Value};
 
 #[derive(Debug)]
 pub struct QueryResult {
     /// 列名和类型信息
-    pub columns: Vec<Column>,
+    pub columns: Vec<String>,
     /// 实际数据行
     pub rows: Vec<Vec<Value>>,
 }
 
 impl QueryResult {
-    pub fn new(columns: Vec<Column>, rows: Vec<Vec<Value>>) -> Self {
+    pub fn new(columns: Vec<String>, rows: Vec<Vec<Value>>) -> Self {
         Self { columns, rows }
     }
 
@@ -18,44 +20,72 @@ impl QueryResult {
     /// 否则提取所有列
     /// # Arguments
     /// * `table` - 要提取的表
-    /// * `row_indices` - 可选的行索引，如果为None，则提取所有行
-    /// * `column_indices` - 可选的列索引，如果为None，则提取所有列
+    /// * `where_clause` - 可选的过滤条件
+    /// * `column_projection` - 可选的列投影
     /// # Returns
     /// * `QueryResult` - 提取的查询结果
     pub fn from_table(
         table: &Table,
-        row_indices: Option<Vec<usize>>,
-        column_indices: Option<Vec<usize>>,
-    ) -> Self {
-        let indices = match column_indices {
-            Some(idx) => idx,
-            None => (0..table.columns.len()).collect(), // 如果没有指定列，则使用所有列
-        };
+        where_clause: &Option<Expr>,
+        column_projection: &[SelectItem],
+    ) -> Result<Self, super::ExecutionError> {
+        let row_indices = table.filter_rows(where_clause)?;
+        let columns = Self::extract_columns_name(table, column_projection)?;
+        let mut rows = Vec::new();
 
-        // 提取列定义
-        let result_columns: Vec<Column> =
-            indices.iter().map(|&i| table.columns[i].clone()).collect();
+        for (i, row) in table.data.iter().enumerate() {
+            if !row_indices.contains(&i) {
+                continue;
+            }
 
-        // 提取行数据
-        let result_rows: Vec<Vec<Value>> = match row_indices {
-            Some(row_idx) => row_idx
-                .iter()
-                .filter(|&&i| i < table.data.len())
-                .map(|&i| {
-                    indices
-                        .iter()
-                        .map(|&col_i| table.data[i][col_i].clone())
-                        .collect()
-                })
-                .collect(),
-            None => table
-                .data
-                .iter()
-                .map(|row| indices.iter().map(|&i| row[i].clone()).collect())
-                .collect(),
-        };
+            let mut new_row = Vec::new();
+            for item in column_projection {
+                match item {
+                    SelectItem::UnnamedExpr(expr) => {
+                        let value = table.evaluate_expr(expr, row)?;
+                        new_row.push(value);
+                    }
+                    SelectItem::Wildcard(_) => {
+                        new_row.extend(row.iter().cloned());
+                    }
+                    _ => {
+                        return Err(super::ExecutionError::ExecutionError(format!(
+                            "不支持的列投影类型: {}",
+                            item
+                        )));
+                    }
+                }
+            }
+            rows.push(new_row);
+        }
 
-        Self::new(result_columns, result_rows)
+        Ok(Self::new(columns, rows))
+    }
+
+    /// 根据列投影，从一个表中提取列名
+    /// # Arguments
+    /// * `table` - 要提取的表
+    /// * `column_projection` - 可选的列投影
+    /// # Returns
+    /// * `Result<Vec<String>, ExecutionError>` - 提取的列
+    /// * `ExecutionError` - 执行错误
+    fn extract_columns_name(
+        table: &Table,
+        column_projection: &[SelectItem],
+    ) -> Result<Vec<String>, super::ExecutionError> {
+        let mut columns = Vec::new();
+        for item in column_projection {
+            match item {
+                SelectItem::UnnamedExpr(expr) => {
+                    columns.push(expr.to_string());
+                }
+                SelectItem::Wildcard(_) => {
+                    columns.extend(table.columns.iter().map(|col| col.name.clone()));
+                }
+                _ => {}
+            }
+        }
+        Ok(columns)
     }
 
     /// 打印查询结果表格，格式符合要求
@@ -71,7 +101,7 @@ impl QueryResult {
 
         // 考虑列标题的宽度
         for (i, col) in self.columns.iter().enumerate() {
-            column_widths[i] = col.name.len().max(3); // 至少3个字符宽度
+            column_widths[i] = col.len().max(3); // 至少3个字符宽度
         }
 
         // 考虑数据行的宽度
@@ -93,7 +123,7 @@ impl QueryResult {
 
         for (i, col) in self.columns.iter().enumerate() {
             let width = column_widths[i];
-            header_line.push_str(&format!(" {:<width$} |", col.name, width = width));
+            header_line.push_str(&format!(" {:<width$} |", col, width = width));
             separator_line.push_str(&format!(" {:<width$} |", "-".repeat(width), width = width));
         }
 

@@ -161,7 +161,7 @@ impl Table {
     /// * `ExecutionError::ExecutionError` - 如果表达式评估失败
     /// * `ExecutionError::TypeUnmatch` - 如果表达式类型不匹配
     /// * `ExecutionError::PrimaryKeyConflictError` - 如果主键冲突
-    fn evaluate_expr(&self, expr: &Expr, row: &[Value]) -> Result<Value, ExecutionError> {
+    pub fn evaluate_expr(&self, expr: &Expr, row: &[Value]) -> Result<Value, ExecutionError> {
         match expr {
             Expr::Identifier(ident) => {
                 if ident.quote_style.is_some() {

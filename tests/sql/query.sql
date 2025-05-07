@@ -59,6 +59,13 @@ SELECT nam
 FROM users;
 SELECT pricee
 FROM products;
+-- 8. WHERE 条件查询
+SELECT *
+FROM users
+WHERE age > 25;
+SELECT *
+FROM products
+WHERE price < 100;
 -- 0. 删除表格
 DROP TABLE users;
 DROP TABLE products;

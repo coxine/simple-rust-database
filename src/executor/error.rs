@@ -4,7 +4,6 @@ use std::fmt;
 #[derive(Debug)]
 pub enum ExecutionError {
     TableExists(String),
-    ColumnNotFound(String),
     TableNotFound(String),
     TypeUnmatch(String),
     FileError(String),
@@ -19,7 +18,6 @@ impl fmt::Display for ExecutionError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             ExecutionError::TableExists(name) => write!(f, "表 '{}' 已存在", name),
-            ExecutionError::ColumnNotFound(name) => write!(f, "列 '{}' 不存在", name),
             ExecutionError::TableNotFound(name) => write!(f, "表 '{}' 不存在", name),
             ExecutionError::FileError(msg) => write!(f, "文件操作错误: {}", msg),
             ExecutionError::ParseError(msg) => write!(f, "解析错误: {}", msg),
