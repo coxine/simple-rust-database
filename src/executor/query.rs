@@ -30,9 +30,14 @@ pub fn query(stmt: &Statement) -> ExecutionResult<()> {
                     return Err(ExecutionError::TableNotFound(table_name.to_string()));
                 }
 
-                let column_index =
-                    extract_column_index(select.projection.clone(), &table.unwrap())?;
-                let query_result = QueryResult::from_table(table.unwrap(), column_index);
+                let column_index = extract_column_index(&select.projection, &table.unwrap())?;
+                let where_clause = &select.selection;
+                let filtered_row_indices = table.unwrap().filter_rows(where_clause)?;
+                let query_result = QueryResult::from_table(
+                    table.unwrap(),
+                    Some(filtered_row_indices),
+                    column_index,
+                );
                 println!("{}", query_result.display());
 
                 Ok(())
@@ -94,14 +99,13 @@ fn extract_table_name(relation: &sqlparser::ast::TableFactor) -> Result<&String,
 /// * `ExecutionError::ParseError` - 如果无法解析投影项
 /// * `ExecutionError::ColumnNotFound` - 如果列名不存在
 fn extract_column_index(
-    projection: Vec<SelectItem>,
+    projection: &[SelectItem],
     table: &Table,
 ) -> Result<Option<Vec<usize>>, ExecutionError> {
-    if is_wildcard(&projection) {
+    if is_wildcard(projection) {
         Ok(None)
     } else {
-        let columns = &projection;
-        let column_names = extract_column_names(columns)?;
+        let column_names = extract_column_names(projection)?;
         let column_index = column_names
             .iter()
             .map(|col| {
@@ -115,14 +119,10 @@ fn extract_column_index(
 }
 
 // 检查投影项是否是通配符
-fn is_wildcard(items: &Vec<SelectItem>) -> bool {
-    for item in items {
-        match item {
-            SelectItem::Wildcard(_) => return true,
-            _ => continue,
-        }
-    }
-    false
+fn is_wildcard(items: &[SelectItem]) -> bool {
+    items
+        .iter()
+        .any(|item| matches!(item, SelectItem::Wildcard(_)))
 }
 
 /// 提取列名
@@ -137,7 +137,7 @@ fn is_wildcard(items: &Vec<SelectItem>) -> bool {
 /// # Errors
 /// * `ExecutionError::ParseError` - 如果无法解析投影项
 /// * `ExecutionError::ColumnNotFound` - 如果列名不存在
-fn extract_column_names(projection_items: &Vec<SelectItem>) -> Result<Vec<Column>, ExecutionError> {
+fn extract_column_names(projection_items: &[SelectItem]) -> Result<Vec<Column>, ExecutionError> {
     let mut columns = Vec::new();
 
     for item in projection_items {
