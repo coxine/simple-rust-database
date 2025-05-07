@@ -1,5 +1,5 @@
 pub mod expr_evaluator;
-// pub mod query_processor;
+pub mod query_processor;
 
 use colored::Colorize;
 use lazy_static::lazy_static;
