@@ -1,7 +1,8 @@
 use sqlparser::ast::{CharacterLength, CreateTable, DataType, Statement};
 
-use crate::executor::table::{Column, ColumnDataType as TableDataType, Table};
+use crate::executor::table::Table;
 use crate::executor::{ExecutionError, ExecutionResult, TABLES};
+use crate::model::{Column, ColumnDataType as TableDataType};
 use crate::utils;
 
 pub fn create_table(stmt: &Statement) -> ExecutionResult<()> {

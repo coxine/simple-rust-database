@@ -1,4 +1,5 @@
 mod executor;
+mod model;
 mod parser;
 mod repl;
 mod utils;

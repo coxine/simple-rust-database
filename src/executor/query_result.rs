@@ -1,6 +1,7 @@
 use sqlparser::ast::{Expr, OrderBy, OrderByKind, SelectItem};
 
-use crate::executor::table::{Table, Value};
+use crate::executor::table::Table;
+use crate::model::Value;
 use crate::utils::expr_evaluator::ExprEvaluator;
 
 #[derive(Debug)]

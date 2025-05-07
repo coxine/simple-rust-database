@@ -3,6 +3,7 @@ use std::sync::atomic::Ordering;
 use utils::IS_INFO_OUTPUT;
 
 pub mod executor;
+pub mod model;
 pub mod parser;
 pub mod repl;
 pub mod utils;

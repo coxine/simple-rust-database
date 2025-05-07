@@ -1,10 +1,7 @@
 use sqlparser::ast::{BinaryOperator as BinOp, Expr, Value as SqlValue};
 
-use crate::executor::{
-    table::{Table, Value},
-    ExecutionError,
-};
-
+use crate::executor::{table::Table, ExecutionError};
+use crate::model::Value;
 pub struct ExprEvaluator {}
 
 impl ExprEvaluator {
