@@ -146,6 +146,20 @@ impl Table {
         Ok(matching_rows)
     }
 
+    /// 评估表达式并返回结果
+    ///
+    /// # Arguments
+    /// * `expr` - 要评估的表达式
+    /// * `row` - 当前行的值
+    ///
+    /// # Returns
+    /// * `Ok(Value)` - 评估结果
+    /// * `Err(ExecutionError)` - 评估错误
+    ///
+    /// # Errors
+    /// * `ExecutionError::ExecutionError` - 如果表达式评估失败
+    /// * `ExecutionError::TypeUnmatch` - 如果表达式类型不匹配
+    /// * `ExecutionError::PrimaryKeyConflictError` - 如果主键冲突
     fn evaluate_expr(&self, expr: &Expr, row: &[Value]) -> Result<Value, ExecutionError> {
         match expr {
             Expr::Identifier(ident) => {
@@ -168,6 +182,9 @@ impl Table {
             Expr::BinaryOp { left, op, right } => {
                 let left_value = self.evaluate_expr(left, row)?;
                 let right_value = self.evaluate_expr(right, row)?;
+                if left_value == Value::Null || right_value == Value::Null {
+                    return Ok(Value::Bool(false));
+                }
                 macro_rules! numeric_binop {
                     ($lhs:expr, $rhs:expr, $op:tt) => {
                         match ($lhs, $rhs) {
@@ -261,7 +278,7 @@ impl Table {
                 let column_index = self.get_column_index(&column_name);
                 if let Some(index) = column_index {
                     let value = self.evaluate_expr(&assignment.value, &self.data[row_idx])?;
-                    
+
                     let mut row = self.data[row_idx].clone();
                     row[index] = value.clone();
                     self.validate_row(&row)?;
