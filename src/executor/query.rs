@@ -27,8 +27,12 @@ pub fn query(stmt: &Statement) -> ExecutionResult<()> {
                     return Err(ExecutionError::TableNotFound(table_name.to_string()));
                 }
 
-                let query_result =
-                    QueryResult::from_table(table.unwrap(), &select.selection, &select.projection)?;
+                let query_result = QueryResult::from_table(
+                    table.unwrap(),
+                    &select.selection,
+                    &select.projection,
+                    &query.order_by,
+                )?;
                 println!("{}", query_result.display());
 
                 Ok(())

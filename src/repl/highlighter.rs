@@ -9,6 +9,8 @@ use std::time::{Duration, Instant};
 lazy_static! {
     static ref KEYWORD_RE: Regex = {
         let keywords = [
+            "ASC",
+            "DESC",
             "SELECT",
             "FROM",
             "WHERE",

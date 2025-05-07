@@ -11,7 +11,7 @@ mod insert;
 mod query;
 mod query_result;
 pub mod storage;
-mod table;
+pub mod table;
 mod update;
 
 use crate::executor::table::Table;
