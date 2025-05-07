@@ -8,28 +8,31 @@ use crate::utils::expr_evaluator::ExprEvaluator;
 pub struct QueryProcessor;
 
 impl QueryProcessor {
-    /// 从排序后的行和行索引中提取满足条件的行数据
+    /// 从表数据根据行索引和WHERE条件提取行数据
     /// # Arguments
     /// * `table` - 表数据
-    /// * `sorted_rows` - 排序后的行
-    /// * `row_indices` - 满足where条件的行索引
+    /// * `sorted_indices` - 排序后的行索引
+    /// * `filter_indices` - 满足where条件的行索引
     /// * `column_projection` - 列投影
     /// # Returns
     /// * `Result<Vec<Vec<Value>>, ExecutionError>` - 提取的行数据
     pub fn extract_rows(
         table: &Table,
-        sorted_rows: &[Vec<Value>],
-        row_indices: &[usize],
+        sorted_indices: &[usize],
+        filter_indices: &[usize],
         column_projection: &[SelectItem],
     ) -> Result<Vec<Vec<Value>>, ExecutionError> {
         let mut rows = Vec::new();
 
-        for (i, row) in sorted_rows.iter().enumerate() {
-            if !row_indices.contains(&i) {
+        for &idx in sorted_indices {
+            // 只处理满足WHERE条件的行
+            if !filter_indices.contains(&idx) {
                 continue;
             }
 
+            let row = &table.data[idx];
             let mut new_row = Vec::new();
+
             for item in column_projection {
                 match item {
                     SelectItem::UnnamedExpr(expr) => {
@@ -79,17 +82,17 @@ impl QueryProcessor {
         Ok(columns)
     }
 
-    /// 根据ORDER BY子句对表的行进行排序
+    /// 根据ORDER BY子句对表的行进行排序，返回排序后的行索引
     /// # Arguments
     /// * `table` - 要排序的表
     /// * `order_by_clause` - 可选的排序条件
     /// # Returns
-    /// * `Result<Vec<Vec<Value>>, ExecutionError>` - 排序后的行
+    /// * `Result<Vec<usize>, ExecutionError>` - 排序后的行索引
     pub fn sort_rows_by_order(
         table: &Table,
         order_by_clause: &Option<OrderBy>,
-    ) -> Result<Vec<Vec<Value>>, ExecutionError> {
-        let sorted_rows = match order_by_clause {
+    ) -> Result<Vec<usize>, ExecutionError> {
+        match order_by_clause {
             Some(order_by) => {
                 let order_by_expr = match &order_by.kind {
                     OrderByKind::Expressions(exprs) => exprs,
@@ -99,9 +102,15 @@ impl QueryProcessor {
                         ));
                     }
                 };
-                let mut sorted_data = table.data.clone();
 
-                sorted_data.sort_by(|row1, row2| {
+                // 创建索引数组
+                let mut indices: Vec<usize> = (0..table.data.len()).collect();
+
+                // 根据排序条件对索引进行排序
+                indices.sort_by(|&i, &j| {
+                    let row1 = &table.data[i];
+                    let row2 = &table.data[j];
+
                     for order_expr in order_by_expr {
                         let val1 = match ExprEvaluator::evaluate_expr(table, &order_expr.expr, row1)
                         {
@@ -130,10 +139,12 @@ impl QueryProcessor {
                     std::cmp::Ordering::Equal
                 });
 
-                sorted_data
+                Ok(indices)
             }
-            None => table.data.clone(), // 没有排序条件时，复制原始数据
-        };
-        Ok(sorted_rows)
+            None => {
+                // 没有排序条件时，返回原始索引
+                Ok((0..table.data.len()).collect())
+            }
+        }
     }
 }

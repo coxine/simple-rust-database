@@ -33,11 +33,15 @@ impl QueryResult {
         column_projection: &[SelectItem],
         order_by_clause: &Option<OrderBy>,
     ) -> Result<Self, super::ExecutionError> {
-        let row_indices = table.filter_rows(where_clause)?;
+        let filter_indices = table.filter_rows(where_clause)?;
         let columns = QueryProcessor::extract_columns_name(table, column_projection)?;
-        let sorted_rows = QueryProcessor::sort_rows_by_order(table, order_by_clause)?;
-        let rows =
-            QueryProcessor::extract_rows(table, &sorted_rows, &row_indices, column_projection)?;
+        let sorted_indices = QueryProcessor::sort_rows_by_order(table, order_by_clause)?;
+        let rows = QueryProcessor::extract_rows(
+            table,
+            &sorted_indices,
+            &filter_indices,
+            column_projection,
+        )?;
         Ok(Self::new(columns, rows))
     }
 
