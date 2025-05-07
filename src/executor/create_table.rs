@@ -23,7 +23,6 @@ pub fn create_table(stmt: &Statement) -> ExecutionResult<()> {
         let table = Table::new(table_name.clone(), columns);
 
         tables.insert(table_name.clone(), table);
-
         utils::log_info(format!("CREATE: 表 '{}' 创建成功", table_name));
         Ok(())
     } else {

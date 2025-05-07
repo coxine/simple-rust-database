@@ -21,7 +21,7 @@ pub fn drop(stmt: &Statement) -> ExecutionResult<()> {
                     let table_name = name.to_string();
 
                     if tables.remove(&table_name).is_some() || *if_exists {
-                        remove_table_file(&table_name, *if_exists)?;
+                        remove_table_file(&table_name)?;
                         utils::log_info(format!("DROP: 成功删除表 {}", table_name));
                     } else {
                         return Err(ExecutionError::TableNotFound(table_name));

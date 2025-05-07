@@ -57,17 +57,19 @@ pub fn store_all_tables() -> ExecutionResult<()> {
     Ok(())
 }
 
-pub fn remove_table_file(table_name: &str, if_exists: bool) -> ExecutionResult<()> {
+pub fn remove_table_file(table_name: &str) -> ExecutionResult<()> {
     let file_path = format!("data/{}.{}", table_name, FILE_EXTENSION);
 
     match std::fs::remove_file(&file_path) {
         Ok(_) => Ok(()),
         Err(err) => match err.kind() {
-            ErrorKind::NotFound if if_exists => {
-                utils::log_warning(&format!("DROP: 表文件 {} 不存在，跳过删除", table_name));
+            ErrorKind::NotFound => {
+                utils::log_warning(&format!(
+                    "表文件 {} 不存在，可能原因：此表于本次会话中创建，尚未保存。",
+                    table_name
+                ));
                 Ok(())
             }
-            ErrorKind::NotFound => Err(ExecutionError::TableNotFound(table_name.to_string())),
             _ => Err(ExecutionError::FileError(format!(
                 "删除表文件错误: {}",
                 err
