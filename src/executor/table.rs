@@ -135,6 +135,7 @@ impl Table {
             match self.evaluate_expr(expr, row) {
                 Ok(Value::Bool(true)) => matching_rows.push(row_idx),
                 Ok(Value::Bool(false)) => {}
+                Ok(Value::Null) => {}
                 Ok(_) => {
                     return Err(ExecutionError::ExecutionError(
                         "筛选条件必须可判断的表达式".to_string(),
@@ -182,12 +183,11 @@ impl Table {
             Expr::BinaryOp { left, op, right } => {
                 let left_value = self.evaluate_expr(left, row)?;
                 let right_value = self.evaluate_expr(right, row)?;
-                if left_value == Value::Null || right_value == Value::Null {
-                    return Ok(Value::Bool(false));
-                }
                 macro_rules! numeric_binop {
                     ($lhs:expr, $rhs:expr, $op:tt) => {
                         match ($lhs, $rhs) {
+                            (Value::Null, _) => return Ok(Value::Null),
+                            (_, Value::Null) => return Ok(Value::Null),
                             (Value::Int(l), Value::Int(r)) => Ok(Value::Int(l $op r)),
                             _ => return Err(ExecutionError::ExecutionError(
                                 "不匹配的操作数类型".to_string()
@@ -198,6 +198,8 @@ impl Table {
                 macro_rules! relop_binop {
                     ($lhs:expr, $rhs:expr, $op:tt) => {
                         match ($lhs, $rhs) {
+                            (Value::Null, _) => return Ok(Value::Null),
+                            (_, Value::Null) => return Ok(Value::Null),
                             (Value::Int(l), Value::Int(r)) => Ok(Value::Bool(l $op r)),
                             (Value::Varchar(l), Value::Varchar(r)) => Ok(Value::Bool(l $op r)),
                             _ => return Err(ExecutionError::ExecutionError(
@@ -209,7 +211,10 @@ impl Table {
                 macro_rules! bool_binop {
                     ($lhs:expr, $rhs:expr, $op:tt) => {
                         match ($lhs, $rhs) {
+                            // 简化版本，含 NULL 则返回 NULL
                             (Value::Bool(l), Value::Bool(r)) => Ok(Value::Int(if l $op r { 1 } else { 0 })),
+                            (Value::Null, _) => return Ok(Value::Null),
+                            (_, Value::Null) => return Ok(Value::Null),
                             _ => return Err(ExecutionError::ExecutionError(
                                 "不匹配的操作数类型".to_string()
                             ))
@@ -249,6 +254,20 @@ impl Table {
                 SqlValue::Null => Ok(Value::Null),
                 _ => Ok(Value::Varchar(value.to_string())),
             },
+            Expr::IsNull(expr) => {
+                let value = self.evaluate_expr(expr, row)?;
+                match value {
+                    Value::Null => Ok(Value::Bool(true)),
+                    _ => Ok(Value::Bool(false)),
+                }
+            }
+            Expr::IsNotNull(expr) => {
+                let value = self.evaluate_expr(expr, row)?;
+                match value {
+                    Value::Null => Ok(Value::Bool(false)),
+                    _ => Ok(Value::Bool(true)),
+                }
+            }
             _ => {
                 return Err(ExecutionError::ExecutionError(format!(
                     "不支持的表达式 {}",
