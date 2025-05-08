@@ -138,7 +138,7 @@ impl Table {
                 Ok(Value::Null) => {}
                 Ok(_) => {
                     return Err(ExecutionError::ExecutionError(
-                        "筛选条件必须可判断的表达式".to_string(),
+                        "筛选条件必须是可判断的表达式".to_string(),
                     ))
                 }
                 Err(e) => return Err(e),
