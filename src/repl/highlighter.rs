@@ -84,7 +84,7 @@ lazy_static! {
         .unwrap()
     };
     static ref ID_RE: Regex = Regex::new(r"[A-Za-z0-9_]+").unwrap();
-    static ref OTHERCHAR_RE: Regex = Regex::new(r"[\u4e00-\u9fa5]+").unwrap();
+    static ref OTHERCHAR_RE: Regex = Regex::new(r".").unwrap();
     static ref WHITESPACE_RE: Regex = Regex::new(r"[\t \n\r]+").unwrap();
     static ref STRING_RE: Regex = Regex::new(r#""(\\.|[^"])*"|'(\\.|[^'])*'"#).unwrap();
     static ref COMMENT_RE: Regex = Regex::new(r"(--[^\n]*)|(\/\*[\s\S]*?\*\/)").unwrap();
@@ -201,7 +201,8 @@ impl Highlighter for SqlHighlighter {
                 }
             }
 
-            // 匹配其他字符 -- 目前仅考虑了中文
+            // 如果没有匹配到任何规则，则将当前字符作为普通文本处理
+            // 匹配其他字符
             if let Some(m) = OTHERCHAR_RE.find(remaining) {
                 if m.start() == 0 {
                     tokens.push(format!("{}", &remaining[m.start()..m.end()]));
@@ -209,11 +210,6 @@ impl Highlighter for SqlHighlighter {
                     continue;
                 }
             }
-
-            // 如果没有匹配到任何规则，则将当前字符作为普通文本处理
-
-            tokens.push(bracket_str[current_pos..current_pos + 1].to_string());
-            current_pos += 1;
         }
 
         // 拼接所有词素

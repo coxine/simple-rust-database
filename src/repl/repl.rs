@@ -78,6 +78,13 @@ pub fn run_repl() -> Result<()> {
     };
 
     let mut rl = Editor::<MyHelper, DefaultHistory>::new()?;
+    let history_path = "./data/repl_history.log";
+    if std::path::Path::new(history_path).exists() {
+        rl.load_history(history_path).unwrap_or_else(|_| {
+            println!("无法加载历史记录");
+        });
+    }
+
     rl.set_helper(Some(h));
     rl.bind_sequence(KeyEvent::ctrl('j'), Cmd::Insert(1, "\n".to_string())); // Ctrl+A
 
@@ -146,5 +153,8 @@ pub fn run_repl() -> Result<()> {
             utils::log_error(format!("数据保存失败: {}", e));
         }
     }
+    rl.save_history(history_path).unwrap_or_else(|_| {
+        println!("无法保存历史记录");
+    });
     Ok(())
 }
