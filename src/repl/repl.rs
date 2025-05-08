@@ -8,7 +8,7 @@ use rustyline::hint::Hinter;
 use rustyline::history::DefaultHistory;
 use rustyline::validate::{ValidationContext, ValidationResult, Validator};
 use rustyline::Helper;
-use rustyline::{error::ReadlineError, Editor, Result};
+use rustyline::{error::ReadlineError, Editor, KeyEvent, Result,Cmd};
 
 struct MyHelper {
     highlighter: highlighter::SqlHighlighter,
@@ -19,10 +19,15 @@ impl Helper for MyHelper {}
 impl Validator for MyHelper {
     fn validate(&self, ctx: &mut ValidationContext) -> Result<ValidationResult> {
         use ValidationResult::{Incomplete, Valid};
-        let last_line = if let Some(pos) = ctx.input().rfind("\n") {
-            &ctx.input()[pos + 1..]
+        let mut input = ctx.input();
+        while input.ends_with('\n') || input.ends_with(' ') {
+            input = &input[..input.len() - 1];
+        }
+
+        let last_line = if let Some(pos) = input.rfind("\n") {
+            &input[pos + 1..]
         } else {
-            ctx.input()
+            input
         };
         let input = if let Some(pos) = last_line.find("--") {
             &last_line[..pos]
@@ -74,6 +79,8 @@ pub fn run_repl() -> Result<()> {
 
     let mut rl = Editor::<MyHelper, DefaultHistory>::new()?;
     rl.set_helper(Some(h));
+    rl.bind_sequence(KeyEvent::ctrl('j'), Cmd::Insert(1, "\n".to_string())); // Ctrl+A
+
     match executor::storage::load_all_tables() {
         Ok(_) => {
             utils::log_info("数据加载成功");
