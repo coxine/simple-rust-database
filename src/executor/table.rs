@@ -132,7 +132,7 @@ impl Table {
 
         // 遍历所有行，评估 WHERE 表达式
         for (row_idx, row) in self.data.iter().enumerate() {
-            match ExprEvaluator::evaluate_expr(self, expr, row) {
+            match ExprEvaluator::evaluate_expr(Some(self), expr, Some(row)) {
                 Ok(Value::Bool(true)) => matching_rows.push(row_idx),
                 Ok(Value::Bool(false)) => {}
                 Ok(Value::Null) => {}
@@ -167,8 +167,11 @@ impl Table {
                 };
                 let column_index = self.get_column_index(&column_name);
                 if let Some(index) = column_index {
-                    let value =
-                        ExprEvaluator::evaluate_expr(self, &assignment.value, &self.data[row_idx])?;
+                    let value = ExprEvaluator::evaluate_expr(
+                        Some(self),
+                        &assignment.value,
+                        Some(&self.data[row_idx]),
+                    )?;
 
                     let mut row = self.data[row_idx].clone();
                     row[index] = value.clone();

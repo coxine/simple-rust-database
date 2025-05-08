@@ -19,22 +19,30 @@ pub fn query(stmt: &Statement) -> ExecutionResult<()> {
     match stmt {
         Statement::Query(query) => match &*query.body {
             SetExpr::Select(select) => {
-                let table_name = extract_table_name(&select.from[0].relation)?;
+                if select.from.is_empty() {
+                    let query_result = QueryResult::from_table(
+                        None,
+                        &select.selection,
+                        &select.projection,
+                        &query.order_by,
+                    )?;
+                    println!("{}", query_result.display());
+                    return Ok(());
+                }
 
+                let table_name = extract_table_name(&select.from[0].relation)?;
                 let tables = TABLES.lock().unwrap();
                 let table = tables.get(table_name);
                 if table.is_none() {
                     return Err(ExecutionError::TableNotFound(table_name.to_string()));
                 }
-
                 let query_result = QueryResult::from_table(
-                    table.unwrap(),
+                    table,
                     &select.selection,
                     &select.projection,
                     &query.order_by,
                 )?;
                 println!("{}", query_result.display());
-
                 Ok(())
             }
             _ => Err(ExecutionError::ParseError(

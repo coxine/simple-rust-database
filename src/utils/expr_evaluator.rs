@@ -23,9 +23,9 @@ impl ExprEvaluator {
     /// * `ExecutionError::ExecutionError` - 如果表达式评估失败
     /// * `ExecutionError::TypeUnmatch` - 如果表达式类型不匹配
     pub fn evaluate_expr(
-        table: &Table,
+        table: Option<&Table>,
         expr: &Expr,
-        row: &[Value],
+        row: Option<&[Value]>,
     ) -> Result<Value, ExecutionError> {
         match expr {
             Expr::Identifier(ident) => {
@@ -33,15 +33,21 @@ impl ExprEvaluator {
                     Ok(Value::Varchar(ident.value.clone()))
                 } else {
                     let column_name = ident.value.clone();
-                    if let Some(column_index) =
-                        table.columns.iter().position(|col| col.name == column_name)
-                    {
-                        return Ok(row[column_index].clone());
+                    if let (Some(table), Some(row)) = (table, row) {
+                        if let Some(column_index) =
+                            table.columns.iter().position(|col| col.name == column_name)
+                        {
+                            return Ok(row[column_index].clone());
+                        } else {
+                            return Err(ExecutionError::ExecutionError(format!(
+                                "列 '{}' 在表 '{}' 中不存在",
+                                column_name, table.name
+                            )));
+                        }
                     } else {
-                        return Err(ExecutionError::ExecutionError(format!(
-                            "列 '{}' 在表 '{}' 中不存在",
-                            column_name, table.name
-                        )));
+                        return Err(ExecutionError::ExecutionError(
+                            "无法在无表环境下解析列标识符".to_string(),
+                        ));
                     }
                 }
             }

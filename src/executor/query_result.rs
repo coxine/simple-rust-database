@@ -2,6 +2,7 @@ use sqlparser::ast::{Expr, OrderBy, SelectItem};
 
 use crate::executor::table::Table;
 use crate::model::Value;
+use crate::utils::expr_evaluator::ExprEvaluator;
 use crate::utils::query_processor::QueryProcessor;
 
 #[derive(Debug)]
@@ -28,21 +29,41 @@ impl QueryResult {
     /// # Returns
     /// * `QueryResult` - 提取的查询结果
     pub fn from_table(
-        table: &Table,
+        table: Option<&Table>,
         where_clause: &Option<Expr>,
         column_projection: &[SelectItem],
         order_by_clause: &Option<OrderBy>,
     ) -> Result<Self, super::ExecutionError> {
-        let filter_indices = table.filter_rows(where_clause)?;
         let columns = QueryProcessor::extract_columns_name(table, column_projection)?;
-        let sorted_indices = QueryProcessor::sort_rows_by_order(table, order_by_clause)?;
-        let rows = QueryProcessor::extract_rows(
-            table,
-            &sorted_indices,
-            &filter_indices,
-            column_projection,
-        )?;
-        Ok(Self::new(columns, rows))
+        match table {
+            Some(table) => {
+                let filter_indices = table.filter_rows(where_clause)?;
+                let sorted_indices = QueryProcessor::sort_rows_by_order(table, order_by_clause)?;
+                let rows = QueryProcessor::extract_rows(
+                    table,
+                    &sorted_indices,
+                    &filter_indices,
+                    column_projection,
+                )?;
+                Ok(Self::new(columns, rows))
+            }
+            None => {
+                let should_return_row = match where_clause.as_ref() {
+                    Some(expr) => matches!(
+                        ExprEvaluator::evaluate_expr(None, expr, None),
+                        Ok(Value::Bool(true))
+                    ),
+                    None => true,
+                };
+                if should_return_row {
+                    let rows: Vec<Value> =
+                        QueryProcessor::process_projection(None, None, column_projection)?;
+                    Ok(Self::new(columns, vec![rows]))
+                } else {
+                    Ok(Self::new(columns, vec![]))
+                }
+            }
+        }
     }
 
     /// 打印查询结果表格，格式符合要求

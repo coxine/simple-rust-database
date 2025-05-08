@@ -27,25 +27,34 @@ impl QueryProcessor {
             .filter(|&&idx| filter_indices.contains(&idx))
             .map(|&idx| {
                 let row = &table.data[idx];
-                let values = column_projection
-                    .iter()
-                    .map(|item| match item {
-                        SelectItem::UnnamedExpr(expr) => {
-                            ExprEvaluator::evaluate_expr(table, expr, row).map(|val| vec![val])
-                        }
-                        SelectItem::Wildcard(_) => Ok(row.clone()),
-                        _ => Err(ExecutionError::ExecutionError(format!(
-                            "不支持的列投影类型: {}",
-                            item
-                        ))),
-                    })
-                    .collect::<Result<Vec<Vec<Value>>, ExecutionError>>()?
-                    .into_iter()
-                    .flatten()
-                    .collect();
+                let values = Self::process_projection(Some(table), Some(row), column_projection)?;
                 Ok(values)
             })
             .collect()
+    }
+
+    pub fn process_projection(
+        table: Option<&Table>,
+        row: Option<&[Value]>,
+        column_projection: &[SelectItem],
+    ) -> Result<Vec<Value>, ExecutionError> {
+        let values = column_projection
+            .iter()
+            .map(|item| match item {
+                SelectItem::UnnamedExpr(expr) => {
+                    ExprEvaluator::evaluate_expr(table, expr, row).map(|val| vec![val])
+                }
+                SelectItem::Wildcard(_) => Ok(row.unwrap().to_vec()),
+                _ => Err(ExecutionError::ExecutionError(format!(
+                    "不支持的列投影类型: {}",
+                    item
+                ))),
+            })
+            .collect::<Result<Vec<Vec<Value>>, ExecutionError>>()?
+            .into_iter()
+            .flatten()
+            .collect::<Vec<Value>>();
+        Ok(values)
     }
 
     /// 根据列投影，从一个表中提取列名
@@ -56,16 +65,19 @@ impl QueryProcessor {
     /// * `Result<Vec<String>, ExecutionError>` - 提取的列
     /// * `ExecutionError` - 执行错误
     pub fn extract_columns_name(
-        table: &Table,
+        table: Option<&Table>,
         column_projection: &[SelectItem],
     ) -> Result<Vec<String>, ExecutionError> {
         Ok(column_projection
             .iter()
             .flat_map(|item| match item {
                 SelectItem::UnnamedExpr(expr) => vec![expr.to_string()],
-                SelectItem::Wildcard(_) => {
-                    table.columns.iter().map(|col| col.name.clone()).collect()
-                }
+                SelectItem::Wildcard(_) => table
+                    .unwrap()
+                    .columns
+                    .iter()
+                    .map(|col| col.name.clone())
+                    .collect(),
                 _ => vec![],
             })
             .collect())
@@ -101,13 +113,19 @@ impl QueryProcessor {
                     let row2 = &table.data[j];
 
                     for order_expr in order_by_expr {
-                        let val1 = match ExprEvaluator::evaluate_expr(table, &order_expr.expr, row1)
-                        {
+                        let val1 = match ExprEvaluator::evaluate_expr(
+                            Some(table),
+                            &order_expr.expr,
+                            Some(row1),
+                        ) {
                             Ok(val) => val,
                             Err(_) => return std::cmp::Ordering::Equal,
                         };
-                        let val2 = match ExprEvaluator::evaluate_expr(table, &order_expr.expr, row2)
-                        {
+                        let val2 = match ExprEvaluator::evaluate_expr(
+                            Some(table),
+                            &order_expr.expr,
+                            Some(row2),
+                        ) {
                             Ok(val) => val,
                             Err(_) => return std::cmp::Ordering::Equal,
                         };
