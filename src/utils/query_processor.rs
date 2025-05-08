@@ -22,38 +22,30 @@ impl QueryProcessor {
         filter_indices: &[usize],
         column_projection: &[SelectItem],
     ) -> Result<Vec<Vec<Value>>, ExecutionError> {
-        let mut rows = Vec::new();
-
-        for &idx in sorted_indices {
-            // 只处理满足WHERE条件的行
-            if !filter_indices.contains(&idx) {
-                continue;
-            }
-
-            let row = &table.data[idx];
-            let mut new_row = Vec::new();
-
-            for item in column_projection {
-                match item {
-                    SelectItem::UnnamedExpr(expr) => {
-                        let value = ExprEvaluator::evaluate_expr(table, expr, row)?;
-                        new_row.push(value);
-                    }
-                    SelectItem::Wildcard(_) => {
-                        new_row.extend(row.iter().cloned());
-                    }
-                    _ => {
-                        return Err(ExecutionError::ExecutionError(format!(
+        sorted_indices
+            .iter()
+            .filter(|&&idx| filter_indices.contains(&idx))
+            .map(|&idx| {
+                let row = &table.data[idx];
+                let values = column_projection
+                    .iter()
+                    .map(|item| match item {
+                        SelectItem::UnnamedExpr(expr) => {
+                            ExprEvaluator::evaluate_expr(table, expr, row).map(|val| vec![val])
+                        }
+                        SelectItem::Wildcard(_) => Ok(row.clone()),
+                        _ => Err(ExecutionError::ExecutionError(format!(
                             "不支持的列投影类型: {}",
                             item
-                        )));
-                    }
-                }
-            }
-            rows.push(new_row);
-        }
-
-        Ok(rows)
+                        ))),
+                    })
+                    .collect::<Result<Vec<Vec<Value>>, ExecutionError>>()?
+                    .into_iter()
+                    .flatten()
+                    .collect();
+                Ok(values)
+            })
+            .collect()
     }
 
     /// 根据列投影，从一个表中提取列名
@@ -67,19 +59,16 @@ impl QueryProcessor {
         table: &Table,
         column_projection: &[SelectItem],
     ) -> Result<Vec<String>, ExecutionError> {
-        let mut columns = Vec::new();
-        for item in column_projection {
-            match item {
-                SelectItem::UnnamedExpr(expr) => {
-                    columns.push(expr.to_string());
-                }
+        Ok(column_projection
+            .iter()
+            .flat_map(|item| match item {
+                SelectItem::UnnamedExpr(expr) => vec![expr.to_string()],
                 SelectItem::Wildcard(_) => {
-                    columns.extend(table.columns.iter().map(|col| col.name.clone()));
+                    table.columns.iter().map(|col| col.name.clone()).collect()
                 }
-                _ => {}
-            }
-        }
-        Ok(columns)
+                _ => vec![],
+            })
+            .collect())
     }
 
     /// 根据ORDER BY子句对表的行进行排序，返回排序后的行索引
