@@ -1,6 +1,20 @@
+/// 删除操作模块
+///
+/// 实现 DELETE FROM 语句的解析和执行逻辑，负责从表中删除数据。
 use crate::executor::{ExecutionError, ExecutionResult, TABLES};
-use sqlparser::ast::{ FromTable, Statement, TableFactor};
+use sqlparser::ast::{FromTable, Statement, TableFactor};
 
+/// 执行删除操作
+///
+/// 解析 DELETE 语句，验证表是否存在，然后删除匹配条件的行。
+///
+/// # Arguments
+///
+/// * `stmt` - SQL 语句对象，预期为 DELETE 语句
+///
+/// # Returns
+///
+/// * `ExecutionResult<()>` - 删除操作的结果，成功或失败
 pub fn delete(stmt: &Statement) -> ExecutionResult<()> {
     if let Statement::Delete(delete) = stmt {
         let tables = match &(delete.from) {

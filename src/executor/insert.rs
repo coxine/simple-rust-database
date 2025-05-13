@@ -1,3 +1,6 @@
+/// 数据插入操作模块
+///
+/// 实现 INSERT INTO 语句的解析和执行逻辑，负责向表中插入数据行。
 use crate::executor::{ExecutionError, ExecutionResult, TABLES};
 use crate::model::Value as TableValue;
 use crate::utils;
@@ -91,6 +94,17 @@ fn reorder_insert_data(
     Ok(reordered_rows)
 }
 
+/// 执行插入操作
+///
+/// 解析 INSERT INTO 语句，验证表是否存在和值是否有效，然后插入行数据。
+///
+/// # Arguments
+///
+/// * `stmt` - SQL 语句对象，预期为 INSERT 语句
+///
+/// # Returns
+///
+/// * `ExecutionResult<()>` - 插入操作的结果，成功或失败
 pub fn insert(stmt: &Statement) -> ExecutionResult<()> {
     if let Statement::Insert(insert_stmt) = stmt {
         let table_name = insert_stmt.table.to_string();

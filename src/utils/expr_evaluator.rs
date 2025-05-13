@@ -1,10 +1,18 @@
+/// 表达式求值模块
+///
+/// 提供 SQL 表达式求值能力，支持比较操作、算术运算和逻辑运算等。
 use sqlparser::ast::{BinaryOperator as BinOp, Expr, Value as SqlValue};
 
 use crate::executor::{table::Table, ExecutionError};
 use crate::model::Value;
+
+/// 表达式求值器
+///
+/// 负责评估 SQL 表达式并返回结果值。
 pub struct ExprEvaluator {}
 
 impl ExprEvaluator {
+    /// 创建一个新的表达式求值器实例
     pub fn new() -> Self {
         Self {}
     }
@@ -12,8 +20,9 @@ impl ExprEvaluator {
     /// 评估表达式并返回结果
     ///
     /// # Arguments
+    /// * `table` - 可选的表引用，用于解析列名
     /// * `expr` - 要评估的表达式
-    /// * `row` - 当前行的值
+    /// * `row` - 可选的当前行数据，用于获取列值
     ///
     /// # Returns
     /// * `Ok(Value)` - 评估结果
@@ -150,6 +159,7 @@ impl ExprEvaluator {
 }
 
 impl Default for ExprEvaluator {
+    /// 提供默认构造函数
     fn default() -> Self {
         Self::new()
     }

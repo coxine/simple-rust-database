@@ -1,3 +1,7 @@
+/// SQL 执行器模块
+///
+/// 负责执行 SQL 语句，包含各种 SQL 命令的处理逻辑，
+/// 如创建表、插入数据、查询、更新和删除等操作。
 use error::ExecutionResult;
 use lazy_static::lazy_static;
 use sqlparser::ast::Statement;
@@ -22,6 +26,17 @@ lazy_static! {
     pub static ref TABLES: Mutex<HashMap<String, Table>> = Mutex::new(HashMap::new());
 }
 
+/// 执行 SQL 语句
+///
+/// 根据语句类型分发到不同的处理函数。
+///
+/// # Arguments
+///
+/// * `stmt` - 要执行的 SQL 语句
+///
+/// # Returns
+///
+/// * `ExecutionResult<()>` - 执行结果
 pub fn execute_statement(stmt: &Statement) -> ExecutionResult<()> {
     match stmt {
         Statement::Query(_) => query::query(stmt),

@@ -1,8 +1,22 @@
+/// 表删除操作模块
+///
+/// 实现 DROP TABLE 语句的解析和执行逻辑，负责删除数据库表。
 use crate::executor::storage::remove_table_file;
 use crate::executor::{ExecutionError, ExecutionResult, TABLES};
 use crate::utils;
 use sqlparser::ast::{ObjectType, Statement};
 
+/// 执行表删除操作
+///
+/// 解析 DROP 语句，验证表是否存在，然后删除表及其关联文件。
+///
+/// # Arguments
+///
+/// * `stmt` - SQL 语句对象，预期为 DROP 语句
+///
+/// # Returns
+///
+/// * `ExecutionResult<()>` - 删除表的结果，成功或失败
 pub fn drop(stmt: &Statement) -> ExecutionResult<()> {
     if let Statement::Drop {
         object_type,

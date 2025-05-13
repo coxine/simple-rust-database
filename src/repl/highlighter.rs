@@ -1,3 +1,7 @@
+/// SQL 语法高亮模块
+///
+/// 提供 SQL 语法高亮功能，增强用户在 REPL 环境中的交互体验。
+/// 支持 SQL 关键词、操作符、字符串、注释等元素的彩色显示。
 use lazy_static::lazy_static;
 use regex::Regex;
 use rustyline::highlight::{CmdKind, Highlighter, MatchingBracketHighlighter};
@@ -5,8 +9,8 @@ use std::borrow::Cow::{self, Borrowed};
 use std::cell::Cell;
 use std::time::{Duration, Instant};
 
-// 关键词和正则表达式定义
 lazy_static! {
+    /// SQL 关键词的正则表达式
     static ref KEYWORD_RE: Regex = {
         let keywords = [
             "ASC",
@@ -52,6 +56,8 @@ lazy_static! {
         ))
         .unwrap()
     };
+
+    /// SQL 操作符的正则表达式
     static ref OPERATOR_RE: Regex = {
         let operator = [
             "AND",
@@ -83,23 +89,54 @@ lazy_static! {
         ))
         .unwrap()
     };
+
+    /// 标识符的正则表达式
     static ref ID_RE: Regex = Regex::new(r"[A-Za-z0-9_]+").unwrap();
+
+    /// 其它字符的正则表达式
     static ref OTHERCHAR_RE: Regex = Regex::new(r".").unwrap();
+
+    /// 空白字符的正则表达式
     static ref WHITESPACE_RE: Regex = Regex::new(r"[\t \n\r]+").unwrap();
+
+    /// 字符串字面量的正则表达式
     static ref STRING_RE: Regex = Regex::new(r#""(\\.|[^"])*"|'(\\.|[^'])*'"#).unwrap();
+
+    /// 注释的正则表达式
     static ref COMMENT_RE: Regex = Regex::new(r"(--[^\n]*)|(\/\*[\s\S]*?\*\/)").unwrap();
+
+    /// 数字的正则表达式
     static ref NUMBER_RE: Regex = Regex::new(r"\b((0[x|X][0-9a-fA-F]+)|(\d+(\.\d+)?))\b").unwrap();
+
+    /// 括号高亮起始标记的正则表达式
     static ref BRACKET_START_RE: Regex = Regex::new(r"\x1b\[1;34m").unwrap();
+
+    /// 括号高亮结束标记的正则表达式
     static ref BRACKET_END_RE: Regex = Regex::new(r"\x1b\[0m").unwrap();
 }
 
+/// SQL 高亮器
+///
+/// 为 REPL 环境提供 SQL 语法高亮功能。
 pub struct SqlHighlighter {
+    /// 着色后的提示符
     pub colored_prompt: String,
+    /// 括号匹配高亮器
     pub highlighter: MatchingBracketHighlighter,
+    /// 上次刷新时间戳，用于控制高亮频率
     pub last_refresh: Cell<Instant>,
 }
 
 impl SqlHighlighter {
+    /// 创建新的 SQL 高亮器实例
+    ///
+    /// # Arguments
+    ///
+    /// * `prompt` - 命令提示符字符串
+    ///
+    /// # Returns
+    ///
+    /// 创建好的 SqlHighlighter 实例
     pub fn new(prompt: &str) -> Self {
         SqlHighlighter {
             colored_prompt: format!("\x1b[1;32m{prompt}\x1b[0m").to_owned(),
@@ -110,7 +147,9 @@ impl SqlHighlighter {
 }
 
 impl Highlighter for SqlHighlighter {
-    // 提示词绿色高亮
+    /// 高亮提示符
+    ///
+    /// 将提示符以绿色显示。
     fn highlight_prompt<'b, 's: 'b, 'p: 'b>(
         &'s self,
         prompt: &'p str,
@@ -123,6 +162,9 @@ impl Highlighter for SqlHighlighter {
         }
     }
 
+    /// 高亮输入行
+    ///
+    /// 对 SQL 查询字符串进行语法高亮，以不同颜色显示 SQL 的各个部分。
     fn highlight<'l>(&self, line: &'l str, pos: usize) -> Cow<'l, str> {
         // 对查询字符串进行高亮
         // 根据光标位置高亮匹配括号
@@ -221,6 +263,9 @@ impl Highlighter for SqlHighlighter {
         Cow::Owned(ret)
     }
 
+    /// 高亮字符
+    ///
+    /// 控制刷新频率，避免过于频繁的刷新降低性能。
     fn highlight_char(&self, line: &str, pos: usize, kind: CmdKind) -> bool {
         let now = Instant::now();
         let last = self.last_refresh.get();

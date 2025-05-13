@@ -1,3 +1,7 @@
+/// 数据持久化存储模块
+///
+/// 提供数据库表的加载和保存功能，支持将表结构和内容序列化到磁盘文件，
+/// 以及从磁盘文件反序列化表数据。
 use crate::executor::error::{ExecutionError, ExecutionResult};
 use crate::executor::TABLES;
 use crate::utils;
@@ -6,8 +10,16 @@ use std::fs::{create_dir_all, read_dir, File};
 use std::io::ErrorKind;
 use std::path::Path;
 
+/// 表文件扩展名
 const FILE_EXTENSION: &str = "bin";
 
+/// 加载所有数据库表
+///
+/// 从数据目录加载所有序列化的表文件，反序列化为表对象。
+///
+/// # Returns
+///
+/// * `ExecutionResult<()>` - 加载结果
 pub fn load_all_tables() -> ExecutionResult<()> {
     let data_dir = Path::new("./data");
     if !data_dir.exists() {
@@ -38,6 +50,13 @@ pub fn load_all_tables() -> ExecutionResult<()> {
     Ok(())
 }
 
+/// 保存所有数据库表
+///
+/// 将内存中的所有表序列化到数据目录的文件中。
+///
+/// # Returns
+///
+/// * `ExecutionResult<()>` - 保存结果
 pub fn store_all_tables() -> ExecutionResult<()> {
     let data_dir = Path::new("./data");
     create_dir_all(data_dir)
@@ -57,6 +76,17 @@ pub fn store_all_tables() -> ExecutionResult<()> {
     Ok(())
 }
 
+/// 移除表文件
+///
+/// 从磁盘上删除指定表的文件。
+///
+/// # Arguments
+///
+/// * `table_name` - 要删除的表名
+///
+/// # Returns
+///
+/// * `ExecutionResult<()>` - 删除结果
 pub fn remove_table_file(table_name: &str) -> ExecutionResult<()> {
     let file_path = format!("data/{}.{}", table_name, FILE_EXTENSION);
 

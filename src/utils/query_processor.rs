@@ -1,3 +1,6 @@
+/// 查询处理器模块
+///
+/// 提供查询处理功能，包括处理查询投影、过滤和排序等操作。
 use sqlparser::ast::{OrderBy, OrderByKind, SelectItem};
 
 use crate::executor::table::Table;
@@ -5,17 +8,26 @@ use crate::executor::ExecutionError;
 use crate::model::Value;
 use crate::utils::expr_evaluator::ExprEvaluator;
 
+/// 查询处理器
+///
+/// 提供对查询结果的处理方法，包括列提取、行过滤和排序等。
 pub struct QueryProcessor;
 
 impl QueryProcessor {
-    /// 从表数据根据行索引和WHERE条件提取行数据
+    /// 提取行数据
+    ///
+    /// 根据过滤条件和列投影提取行数据
+    ///
     /// # Arguments
-    /// * `table` - 表数据
+    ///
+    /// * `table` - 表对象
     /// * `sorted_indices` - 排序后的行索引
-    /// * `filter_indices` - 满足where条件的行索引
-    /// * `column_projection` - 列投影
+    /// * `filter_indices` - 过滤后的行索引
+    /// * `column_projection` - 列投影列表
+    ///
     /// # Returns
-    /// * `Result<Vec<Vec<Value>>, ExecutionError>` - 提取的行数据
+    ///
+    /// * `Result<Vec<Vec<Value>>, ExecutionError>` - 结果行数据或错误
     pub fn extract_rows(
         table: &Table,
         sorted_indices: &[usize],
@@ -33,6 +45,19 @@ impl QueryProcessor {
             .collect()
     }
 
+    /// 处理投影
+    ///
+    /// 根据列投影处理一行数据
+    ///
+    /// # Arguments
+    ///
+    /// * `table` - 可选的表对象
+    /// * `row` - 可选的行数据
+    /// * `column_projection` - 列投影列表
+    ///
+    /// # Returns
+    ///
+    /// * `Result<Vec<Value>, ExecutionError>` - 处理后的行数据或错误
     pub fn process_projection(
         table: Option<&Table>,
         row: Option<&[Value]>,
@@ -57,13 +82,18 @@ impl QueryProcessor {
         Ok(values)
     }
 
-    /// 根据列投影，从一个表中提取列名
+    /// 提取列名
+    ///
+    /// 从查询的选择项中提取列名
+    ///
     /// # Arguments
-    /// * `table` - 要提取的表
-    /// * `column_projection` - 可选的列投影
+    ///
+    /// * `table` - 可选的表对象
+    /// * `column_projection` - 列投影列表
+    ///
     /// # Returns
-    /// * `Result<Vec<String>, ExecutionError>` - 提取的列
-    /// * `ExecutionError` - 执行错误
+    ///
+    /// * `Result<Vec<String>, ExecutionError>` - 列名列表或错误
     pub fn extract_columns_name(
         table: Option<&Table>,
         column_projection: &[SelectItem],
@@ -83,12 +113,16 @@ impl QueryProcessor {
             .collect())
     }
 
-    /// 根据ORDER BY子句对表的行进行排序，返回排序后的行索引
+    /// 按排序条件排序行
+    ///
     /// # Arguments
-    /// * `table` - 要排序的表
-    /// * `order_by_clause` - 可选的排序条件
+    ///
+    /// * `table` - 表对象
+    /// * `order_by` - 可选的排序条件
+    ///
     /// # Returns
-    /// * `Result<Vec<usize>, ExecutionError>` - 排序后的行索引
+    ///
+    /// * `Result<Vec<usize>, ExecutionError>` - 排序后的行索引或错误
     pub fn sort_rows_by_order(
         table: &Table,
         order_by_clause: &Option<OrderBy>,

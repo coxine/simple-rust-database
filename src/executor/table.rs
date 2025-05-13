@@ -1,3 +1,6 @@
+/// 数据库表模块
+///
+/// 定义了表的数据结构和操作方法，包括行的插入、删除、更新和过滤等。
 use bincode::{Decode, Encode};
 
 use crate::model::{Column, ColumnDataType, Value};
@@ -7,14 +10,31 @@ use crate::utils::log_info;
 use super::ExecutionError;
 use sqlparser::ast::{Assignment, AssignmentTarget, Expr};
 
+/// 表结构
+///
+/// 存储表的元数据（表名和列定义）以及实际的行数据。
+/// 支持序列化和反序列化以实现持久化存储。
 #[derive(Debug, Encode, Decode)]
 pub struct Table {
+    /// 表名
     pub name: String,
+    /// 表的列定义
     pub columns: Vec<Column>,
+    /// 表中的数据行
     pub data: Vec<Vec<Value>>,
 }
 
 impl Table {
+    /// 创建新表
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - 表名
+    /// * `columns` - 列定义列表
+    ///
+    /// # Returns
+    ///
+    /// 创建的表对象
     pub fn new(name: String, columns: Vec<Column>) -> Self {
         Self {
             name,
@@ -23,29 +43,41 @@ impl Table {
         }
     }
 
+    /// 插入一行数据
+    ///
+    /// 在插入前会验证数据是否符合表的约束条件。
+    ///
+    /// # Arguments
+    ///
+    /// * `values` - 要插入的值列表，顺序需与表的列定义一致
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(())` 插入成功
+    /// * `Err(ExecutionError)` 插入失败，包含详细错误信息
     pub fn insert_row(&mut self, values: Vec<Value>) -> Result<(), ExecutionError> {
         self.validate_row(&values)?;
         self.data.push(values);
         Ok(())
     }
 
-    /// Validates that a row of values conforms to the table's schema.
+    /// 验证行数据是否符合表的约束
     ///
-    /// This method performs the following validations:
-    /// - Checks that the number of values matches the number of columns
-    /// - Verifies that each value's type matches its corresponding column's type
-    /// - Ensures integer and varchar values don't exceed their defined length limits
-    /// - Prevents NULL values in non-nullable or primary key columns
-    /// - Enforces primary key uniqueness constraints
+    /// 进行的验证包括：
+    /// - 检查值的数量是否与列数匹配
+    /// - 验证每个值的类型是否与对应列的类型匹配
+    /// - 确保整数和字符串值不超过其定义的长度限制
+    /// - 防止在非空或主键列中插入 NULL 值
+    /// - 确保主键不重复
     ///
     /// # Arguments
     ///
-    /// * `values` - A slice of values representing a row to be inserted
+    /// * `values` - 表示要插入的一行的值切片
     ///
     /// # Returns
     ///
-    /// * `Ok(())` if all validations pass
-    /// * `Err(ExecutionError)` with a detailed error message if any validation fails
+    /// * `Ok(())` 如果所有验证都通过
+    /// * `Err(ExecutionError)` 如果任何验证失败，包含详细错误信息
     fn validate_row(&self, values: &[Value]) -> Result<(), ExecutionError> {
         if values.len() != self.columns.len() {
             return Err(ExecutionError::TypeUnmatch(format!(
@@ -107,6 +139,16 @@ impl Table {
         Ok(())
     }
 
+    /// 删除满足条件的行
+    ///
+    /// # Arguments
+    ///
+    /// * `where_clause` - 可选的 WHERE 条件表达式，用于过滤要删除的行
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(())` 删除成功
+    /// * `Err(ExecutionError)` 删除失败
     pub fn delete_rows(&mut self, where_clause: &Option<Expr>) -> Result<(), ExecutionError> {
         let matching_row_indices = self.filter_rows(where_clause)?;
 
@@ -122,6 +164,17 @@ impl Table {
         Ok(())
     }
 
+    /// 过滤满足条件的行
+    ///
+    /// 根据可选的 WHERE 条件表达式筛选出满足条件的行索引。
+    ///
+    /// # Arguments
+    ///
+    /// * `where_clause` - 可选的 WHERE 条件表达式
+    ///
+    /// # Returns
+    ///
+    /// * `Result<Vec<usize>, ExecutionError>` - 满足条件的行索引列表
     pub fn filter_rows(&self, where_clause: &Option<Expr>) -> Result<Vec<usize>, ExecutionError> {
         if where_clause.is_none() {
             // 如果没有 WHERE 子句，返回所有行的索引
@@ -147,6 +200,16 @@ impl Table {
         Ok(matching_rows)
     }
 
+    /// 更新满足条件的行
+    ///
+    /// # Arguments
+    ///
+    /// * `assignments` - 列赋值表达式列表
+    /// * `where_clause` - 可选的 WHERE 条件表达式
+    ///
+    /// # Returns
+    ///
+    /// * `Result<(), ExecutionError>` - 更新成功或失败
     pub fn update_rows(
         &mut self,
         assignments: &Vec<Assignment>,
@@ -189,10 +252,31 @@ impl Table {
         Ok(())
     }
 
+    /// 获取列索引
+    ///
+    /// 根据列名查找其在表中的索引位置。
+    ///
+    /// # Arguments
+    ///
+    /// * `column_name` - 列名
+    ///
+    /// # Returns
+    ///
+    /// * `Option<usize>` - 如果存在该列，返回其索引；否则返回 None
     pub fn get_column_index(&self, column_name: &str) -> Option<usize> {
         self.columns.iter().position(|col| col.name == column_name)
     }
 
+    /// 检查主键值是否已存在
+    ///
+    /// # Arguments
+    ///
+    /// * `value` - 要检查的值
+    /// * `column` - 列定义
+    ///
+    /// # Returns
+    ///
+    /// * `bool` - 如果主键值已存在，返回 true；否则返回 false
     fn is_primary_key_exists(&self, value: &Value, column: &Column) -> bool {
         if !column.is_primary_key {
             return false;

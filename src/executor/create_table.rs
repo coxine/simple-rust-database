@@ -1,10 +1,24 @@
+/// 创建表操作模块
+///
+/// 实现 CREATE TABLE 语句的解析和执行逻辑，负责创建数据库表的结构。
 use sqlparser::ast::{CharacterLength, CreateTable, DataType, Statement};
 
 use crate::executor::table::Table;
 use crate::executor::{ExecutionError, ExecutionResult, TABLES};
 use crate::model::{Column, ColumnDataType as TableDataType};
-use crate::utils;
+use crate::utils::log_info;
 
+/// 执行创建表操作
+///
+/// 解析 CREATE TABLE 语句，验证表是否存在，然后创建新表。
+///
+/// # Arguments
+///
+/// * `stmt` - SQL 语句对象，预期为 CREATE TABLE 语句
+///
+/// # Returns
+///
+/// * `ExecutionResult<()>` - 创建表的结果，成功或失败
 pub fn create_table(stmt: &Statement) -> ExecutionResult<()> {
     if let Statement::CreateTable(create_table_stmt) = stmt {
         let table_name = create_table_stmt
@@ -24,15 +38,15 @@ pub fn create_table(stmt: &Statement) -> ExecutionResult<()> {
         let table = Table::new(table_name.clone(), columns);
 
         tables.insert(table_name.clone(), table);
-        utils::log_info(format!("CREATE: 表 '{}' 创建成功", table_name));
+
+        log_info(format!("表 '{}' 创建成功", table_name));
         Ok(())
     } else {
-        Err(ExecutionError::ParseError(
-            "无法解析 CREATE 语句".to_string(),
-        ))
+        Err(ExecutionError::ParseError("无效的创建表语句".to_string()))
     }
 }
 
+// TODO
 fn create_table_columns(create_table_stmt: &CreateTable) -> Vec<Column> {
     create_table_stmt
         .columns
