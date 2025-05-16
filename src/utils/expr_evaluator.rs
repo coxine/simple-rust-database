@@ -92,7 +92,7 @@ impl ExprEvaluator {
                     ($lhs:expr, $rhs:expr, $op:tt) => {
                         match ($lhs, $rhs) {
                             // 简化版本，含 NULL 则返回 NULL
-                            (Value::Bool(l), Value::Bool(r)) => Ok(Value::Int(if l $op r { 1 } else { 0 })),
+                            (Value::Bool(l), Value::Bool(r)) => Ok(Value::Bool(if l $op r { true } else { false })),
                             (Value::Null, _) => return Ok(Value::Null),
                             (_, Value::Null) => return Ok(Value::Null),
                             _ => return Err(ExecutionError::ExecutionError(

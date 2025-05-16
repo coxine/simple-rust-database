@@ -1,4 +1,4 @@
-use simple_rust_database::{execute_sql, executor};
+use simple_db::{execute_sql, executor};
 use std::path::Path;
 
 #[test]
