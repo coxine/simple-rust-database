@@ -112,7 +112,10 @@ impl Table {
                 (Value::Varchar(_), ColumnDataType::Varchar(_)) => {}
                 (Value::Null, _) => {
                     if !column.is_nullable || column.is_primary_key {
-                        println!("Field '{}' doesn't have a default value", column.name);
+                        println!(
+                            "Error: Field '{}' doesn't have a default value",
+                            column.name
+                        );
                         return Err(ExecutionError::TypeUnmatch(format!(
                             "列 '{}' 不允许 NULL 值",
                             column.name
@@ -221,6 +224,9 @@ impl Table {
         }
 
         for row_idx in matching_row_indices {
+            let mut row = self.data[row_idx].clone();
+            let original_row = row.clone();
+            self.data.remove(row_idx);
             for assignment in assignments {
                 let column_name = match &assignment.target {
                     AssignmentTarget::ColumnName(name) => name.to_string(),
@@ -233,14 +239,9 @@ impl Table {
                     let value = ExprEvaluator::evaluate_expr(
                         Some(self),
                         &assignment.value,
-                        Some(&self.data[row_idx]),
+                        Some(&original_row),
                     )?;
-
-                    let mut row = self.data[row_idx].clone();
                     row[index] = value.clone();
-                    self.validate_row(&row)?;
-                    self.data[row_idx][index] = value;
-                    log_info(format!("更新行 {:?} 为 {:?}", row_idx, self.data[row_idx]));
                 } else {
                     return Err(ExecutionError::ExecutionError(format!(
                         "列 '{}' 在表 '{}' 中不存在",
@@ -248,6 +249,14 @@ impl Table {
                     )));
                 }
             }
+            match self.validate_row(&row) {
+                Ok(_) => self.data.insert(row_idx, row),
+                Err(e) => {
+                    self.data.insert(row_idx, original_row);
+                    return Err(e);
+                }
+            };
+            log_info(format!("更新行 {:?} 为 {:?}", row_idx, self.data[row_idx]));
         }
         Ok(())
     }
