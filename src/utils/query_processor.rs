@@ -1,12 +1,31 @@
+use crate::executor::table::Table;
+use crate::executor::ExecutionError;
+use crate::executor::EXECUTOR_INPUT;
+use crate::model::Value;
+use crate::utils::expr_evaluator::ExprEvaluator;
 /// 查询处理器模块
 ///
 /// 提供查询处理功能，包括处理查询投影、过滤和排序等操作。
-use sqlparser::ast::{OrderBy, OrderByKind, SelectItem};
+use sqlparser::ast::{OrderBy, OrderByKind, SelectItem, Spanned};
+use sqlparser::tokenizer::Location;
 
-use crate::executor::table::Table;
-use crate::executor::ExecutionError;
-use crate::model::Value;
-use crate::utils::expr_evaluator::ExprEvaluator;
+fn extract_original_str(s: &str, start: Location, end: Location) -> Option<String> {
+    let lines: Vec<&str> = s.lines().collect();
+
+    let start_line = (start.line - 1) as usize;
+    let end_line = (end.line - 1) as usize;
+
+    if start_line!=end_line{
+        return None;
+    }
+
+    let ret = lines[start_line]
+        .chars()
+        .skip(start.column as usize - 1)
+        .take((end.column- start.column) as usize)
+        .collect::<String>();
+    Some(ret)
+}
 
 /// 查询处理器
 ///
@@ -101,7 +120,12 @@ impl QueryProcessor {
         Ok(column_projection
             .iter()
             .flat_map(|item| match item {
-                SelectItem::UnnamedExpr(expr) => vec![expr.to_string()],
+                SelectItem::UnnamedExpr(expr) => vec![extract_original_str(
+                    &EXECUTOR_INPUT.lock().unwrap().to_string(),
+                    expr.span().start,
+                    expr.span().end,
+                )
+                .unwrap()],
                 SelectItem::Wildcard(_) => table
                     .unwrap()
                     .columns

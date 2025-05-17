@@ -160,7 +160,7 @@ impl Table {
         matching_row_indices.sort_unstable_by(|a, b| b.cmp(a));
 
         for idx in matching_row_indices.iter() {
-            println!("Delete Row {:?}", self.data[*idx]);
+            log_info(format!("Delete Row {:?}", self.data[*idx]).to_string());
             self.data.remove(*idx);
         }
 

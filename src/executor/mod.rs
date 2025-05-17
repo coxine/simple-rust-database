@@ -24,6 +24,7 @@ pub use error::ExecutionError;
 
 lazy_static! {
     pub static ref TABLES: Mutex<HashMap<String, Table>> = Mutex::new(HashMap::new());
+    pub static ref EXECUTOR_INPUT: Mutex<String> = Mutex::new("".to_string());
 }
 
 /// 执行 SQL 语句
@@ -37,7 +38,8 @@ lazy_static! {
 /// # Returns
 ///
 /// * `ExecutionResult<()>` - 执行结果
-pub fn execute_statement(stmt: &Statement) -> ExecutionResult<()> {
+pub fn execute_statement(stmt: &Statement, input: &str) -> ExecutionResult<()> {
+    *EXECUTOR_INPUT.lock().unwrap() = input.to_string();
     match stmt {
         Statement::Query(_) => query::query(stmt),
         Statement::CreateTable { .. } => create_table::create_table(stmt),

@@ -1,0 +1,13 @@
+CREATE TABLE books_test17 (
+    id INT(32) PRIMARY KEY,
+    name VARCHAR(100),
+    left_num INT(32),
+    discription VARCHAR(150),
+    price INT NOT NULL
+);
+
+INSERT INTO books_test17 (id, name, discription, price)VALUES (1, "SETI", "Search for ET", 32);
+INSERT INTO books_test17 (left_num, id, name, price) VALUES (NULL,2, "Rust Programing", 66);
+DELETE FROM books_test17 Where id is not nULL;
+DROP Table books_test17;
+SELECT * FROM books_test17;

@@ -139,7 +139,7 @@ pub fn run_repl() -> Result<()> {
                 match parser::parse_sql(sql) {
                     Ok(ast) => {
                         for stmt in &ast {
-                            match executor::execute_statement(stmt) {
+                            match executor::execute_statement(stmt,sql) {
                                 Ok(_) => {}
                                 Err(e) => {
                                     utils::log_error(e.to_string());
