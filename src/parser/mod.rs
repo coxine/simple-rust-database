@@ -2,7 +2,7 @@
 ///
 /// 用于解析 SQL 语句并转换为内部表示形式，供执行器执行。
 /// 使用外部 sqlparser 库完成基本的 SQL 语法解析工作。
-use sqlparser::dialect::GenericDialect;
+use sqlparser::dialect::MySqlDialect;
 use sqlparser::parser::Parser;
 
 pub mod error;
@@ -21,7 +21,7 @@ pub use error::{ParserError, ParserResult};
 ///
 /// 成功时返回语句向量，失败时返回解析错误
 pub fn parse_sql(sql: &str) -> ParserResult<Vec<sqlparser::ast::Statement>> {
-    let dialect = GenericDialect {};
+    let dialect = MySqlDialect {};
     match Parser::parse_sql(&dialect, sql) {
         Ok(ast) => Ok(ast),
         Err(e) => Err(ParserError::SqlParseError(e.to_string())),

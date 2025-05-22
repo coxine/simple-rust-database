@@ -26,20 +26,22 @@ pub mod utils;
 /// 如果 SQL 语句执行成功，返回 `true`；否则返回 `false`
 pub fn execute_sql(sql_statement: &str) -> bool {
     IS_INFO_OUTPUT.store(false, Ordering::Relaxed);
-
-    match parser::parse_sql(sql_statement) {
-        Ok(statements) => {
-            for statement in statements {
-                let execute_result = executor::execute_statement(&statement, sql_statement);
-                if let Err(_) = execute_result {
-                    return false;
+    let stmts = sql_statement.split(';');
+    for stmt in stmts {
+        match parser::parse_sql(stmt) {
+            Ok(statements) => {
+                for statement in statements {
+                    let execute_result = executor::execute_statement(&statement, stmt);
+                    if let Err(_) = execute_result {
+                        return false;
+                    }
                 }
             }
-            true
-        }
-        Err(_) => {
-            println!("Error: Syntax error");
-            false
+            Err(_) => {
+                // println!("Error: Syntax error");
+                return false;
+            }
         }
     }
+    true
 }

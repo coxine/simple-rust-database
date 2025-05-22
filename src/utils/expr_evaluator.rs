@@ -129,6 +129,7 @@ impl ExprEvaluator {
             }
             Expr::Value(value) => match &value.value {
                 SqlValue::SingleQuotedString(s) => Ok(Value::Varchar(s.clone())),
+                SqlValue::DoubleQuotedString(s) => Ok(Value::Varchar(s.clone())),
                 SqlValue::Number(n, _) => Ok(Value::Int(n.parse::<i64>().unwrap())),
                 SqlValue::Boolean(b) => Ok(Value::Bool(b.clone())),
                 SqlValue::Null => Ok(Value::Null),
