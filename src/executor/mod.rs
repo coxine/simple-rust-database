@@ -34,6 +34,7 @@ lazy_static! {
 /// # Arguments
 ///
 /// * `stmt` - 要执行的 SQL 语句
+/// * `input` - 整个 SQL 语句的输入字符串，供 OJ 评测使用
 ///
 /// # Returns
 ///
