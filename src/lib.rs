@@ -30,7 +30,7 @@ pub fn execute_sql(sql_statement: &str) -> bool {
     match parser::parse_sql(sql_statement) {
         Ok(statements) => {
             for statement in statements {
-                let execute_result = executor::execute_statement(&statement,sql_statement);
+                let execute_result = executor::execute_statement(&statement, sql_statement);
                 if let Err(_) = execute_result {
                     return false;
                 }
